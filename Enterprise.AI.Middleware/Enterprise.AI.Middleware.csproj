@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <RootNamespace>Enterprise.AI.Middleware</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Packaging">
+    <PackageId>Enterprise.AI.Middleware</PackageId>
+    <Version>1.0.0</Version>
+    <Description>Composable Microsoft.Extensions.AI IChatClient middlewares for enterprise applications. Includes hierarchical activity tracking for tools, Microsoft Agent Framework agents exposed as tools, and MCP tools — streaming human-readable status updates ("Calling Tool(s)", "Calling {Agent} Agent", "Calling {Server} MCP") and granular per-scope token usage (input/output/total, model, provider) back to the caller.</Description>
+    <PackageTags>ai;chatclient;middleware;mcp;agents;microsoft-extensions-ai;agent-framework;token-usage;streaming;observability</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/RorroRojas3/Enterprise.AI</PackageProjectUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <PropertyGroup Label="StrongNameOptIn" Condition="'$(EnterpriseAISignAssembly)' == 'true'">
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Enterprise.AI.Middleware.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
+    <PackageReference Include="Microsoft.Agents.AI" />
+    <PackageReference Include="ModelContextProtocol.Core" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+</Project>

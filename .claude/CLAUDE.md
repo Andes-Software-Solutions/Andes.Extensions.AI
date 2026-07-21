@@ -1,19 +1,37 @@
 # CLAUDE.md
 
-Reusable project memory for **C#/.NET back ends and Angular front ends**. It loads automatically every session and governs how Claude Code works in this project. Drop it into a repository and follow it for all C# and Angular work.
+Project memory for **Enterprise.AI** — a C#/.NET solution that ships **`Enterprise.AI.Middleware`**, a NuGet package of composable **Microsoft.Extensions.AI `IChatClient` middlewares**. It loads automatically every session and governs how Claude Code works in this repository.
 
-## Repository layout (`.claude/`)
+## What this project is
 
-- `CLAUDE.md` — this file (always-on standards + delegation rules).
-- `rules/` — detailed standards that **auto-apply by file type** (see [Detailed standards](#detailed-standards--clauderules)).
-- `skills/` — invokable best-practice skills (`angular-developer`, `csharp-async`, `csharp-docs`, `csharp-xunit`, `ngrx-signal-store`).
-- `agents/` — subagents (`angular-code-reviewer`, `csharp-code-reviewer`, `se-technical-writer`).
-- `commands/` — slash commands (`/ngrx-signals-sync`).
-- `settings.json` and `.mcp.json` (repo root) — model and MCP server configuration.
+`Enterprise.AI.Middleware` (PackageId `Enterprise.AI.Middleware`, multi-target `net8.0;net10.0`) provides production middlewares for `IChatClient` pipelines. The first middleware is **tool tracking** (`ToolTrackingChatClient` + `UseToolTracking()`):
+
+- Tracks every tool invocation made by the assistant — plain `AIFunction` tools, **Microsoft Agent Framework agents exposed as tools** (`agent.AsTrackedAIFunction()`), and **MCP tools** (`McpClientTool`, annotated via `WithTrackingMetadata`).
+- Emits hierarchical status updates ("Calling Tool(s)" / "Calling {Agent} Agent" / "Calling {Server} MCP" with subheaders) **in-band** as `ActivityStatusContent` items in the streaming response and **out-of-band** to `IChatActivityObserver` implementations.
+- Records granular token usage (input/output/total, model id, provider name from `ChatClientMetadata`) per request and per tool-call scope, including LLM calls nested inside agent tools (AsyncLocal ambient scope tree), rolled up into a `ChatActivityReport`.
+
+Key invariant: **`UseToolTracking()` must be registered before `UseFunctionInvocation()`** — the tracker wraps the tools that the `FunctionInvokingChatClient` executes.
+
+## Solution layout
+
+- `Enterprise.AI.slnx` — solution (XML format).
+- `Enterprise.AI.Middleware\` — the package source. Public surface in `Tracking\`; implementation details in `Tracking\Internal\` (visible to the unit tests via `InternalsVisibleTo`).
+- `tests\Enterprise.AI.Middleware.Tests\` — unit tests; no network. A `ScriptedChatClient` fake drives the real `FunctionInvokingChatClient`, and an in-process MCP client/server pair (stream transport) supplies genuine `McpClientTool` instances.
+- `tests\Enterprise.AI.Middleware.IntegrationTests\` — Azure OpenAI tests, auto-skip unless `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `AZURE_OPENAI_DEPLOYMENT` are set.
+- `tests\Enterprise.AI.Middleware.TestMcpServer\` — stdio MCP server used by the integration tests (no Node.js dependency).
+- `docs\` — developer documentation (getting-started, architecture, status-events, usage-tracking, configuration).
+- Build infrastructure: `Directory.Build.props` (warnings as errors, C# 14, deterministic builds), `Directory.Packages.props` (**central package management — all versions live here**), `global.json` (SDK pin), `.editorconfig` (style rules; `CA2007` is an error in the library, off in tests).
+
+## Project-specific conventions
+
+- **Central package management**: never put a `Version` on a `PackageReference`; add/update pins in `Directory.Packages.props`.
+- The library must compile on **both** `net8.0` and `net10.0` — avoid net10-only APIs (C# 14 language features are fine).
+- `ConfigureAwait(false)` on every `await` in the library (enforced by CA2007-as-error); not required in tests.
+- Events and logs must never carry prompt content, tool arguments, or tool results. Tool-argument logging exists only behind `ToolTrackingOptions.ArgumentLogging` (default `None`).
+- Public API changes require XML docs (missing docs fail the build) and a matching update under `docs\`.
+- Packaging metadata lives in `Enterprise.AI.Middleware.csproj`; `dotnet pack -c Release` must produce the nupkg + snupkg with the README embedded.
 
 ## C# coding standards (always)
-
-Apply these to all C# you write or review. The detailed source of truth is in `.claude/rules/` and the skills in `.claude/skills/`.
 
 **Language & formatting**
 
@@ -44,14 +62,14 @@ Apply these to all C# you write or review. The detailed source of truth is in `.
 **Validation & error handling**
 
 - `try`/`catch` around `await`s; never silently swallow exceptions.
-- Validate with FluentValidation or DataAnnotations; centralize with global exception middleware.
-- Return errors as Problem Details (RFC 9457).
+- Validate arguments at public entry points (`ArgumentNullException.ThrowIfNull`).
+- Return errors as Problem Details (RFC 9457) in any future HTTP surface.
 
 **Logging & security**
 
-- Inject `ILogger<T>` via the constructor; use structured logging (e.g. Serilog).
+- Inject `ILogger<T>`/`ILoggerFactory`; use structured logging (source-generated `[LoggerMessage]` in this repo).
 - **Never log PII or secrets.**
-- Prefer `DefaultAzureCredential` + Azure Key Vault / Managed Identity over secrets in code or config.
+- Prefer `DefaultAzureCredential` + Azure Key Vault / Managed Identity over secrets in code or config (integration tests use an API key from environment variables by explicit choice).
 
 **Documentation** (see the `csharp-docs` skill)
 
@@ -59,23 +77,14 @@ Apply these to all C# you write or review. The detailed source of truth is in `.
 
 **Testing** (see the `csharp-xunit` skill)
 
-- xUnit; tests live in a `[ProjectName].Tests` project; name tests `MethodName_Scenario_ExpectedBehavior`.
+- xUnit; tests live under `tests\`; name tests `MethodName_Scenario_ExpectedBehavior`.
 - Follow Arrange-Act-Assert structure but do **not** write `// Arrange` / `// Act` / `// Assert` comments.
-- Data-driven tests with `[Theory]` + `[InlineData]` / `[MemberData]`; isolate with Moq or NSubstitute; run with `dotnet test`.
+- Data-driven tests with `[Theory]` + `[InlineData]` / `[MemberData]`; isolate with NSubstitute or hand-rolled fakes (`ScriptedChatClient`); run with `dotnet test`.
+- Integration tests use `[SkippableFact]` and must skip cleanly when the environment is not configured.
 
 **Review posture**
 
 - Make only **high-confidence** suggestions. Comment on _why_ a non-obvious design decision was made, not just what it does.
-
-## Angular / NgRx state (always)
-
-- Standalone components, `ChangeDetectionStrategy.OnPush`, signals for state. Assume zoneless.
-- Non-trivial state belongs in an **NgRx Signal Store** (`@ngrx/signals`) — invoke the `ngrx-signal-store` skill rather than hand-rolling a `BehaviorSubject` service.
-- Keep `protectedState` on so only the store's own methods write state; use `patchState` with standalone updaters.
-- Reach for `rxMethod` (not `signalMethod`) whenever requests can overlap — `switchMap` is what prevents a stale response overwriting a fresh one.
-- One store per entity type; use `withEntities` for keyed collections.
-- This is **not** classic NgRx: no actions, reducers, or effects unless the Events plugin is a deliberate choice.
-- For Angular questions that are not about state, use the `angular-developer` skill and the `angular-cli` MCP server instead of relying on memory.
 
 ## Skills
 
@@ -84,43 +93,39 @@ Available via the Skill tool:
 - `csharp-async` — async/await best practices.
 - `csharp-docs` — XML documentation conventions.
 - `csharp-xunit` — xUnit unit-testing patterns.
-- `angular-developer` — the official Angular team agent skill (from <https://angular.dev/ai/agent-skills>, installed from `github.com/angular/skills`). General Angular implementation guidance with progressive disclosure: `SKILL.md` routes to `references/` files for components, signals (`linkedSignal`, `resource`, effects), forms (incl. Signal Forms), DI, routing/SSR, styling, and testing. For state management, `ngrx-signal-store` remains the source of truth.
-- `ngrx-signal-store` — NgRx Signal Store patterns for Angular. Uses progressive disclosure: `SKILL.md` carries the decision rules, and `references/` files (entities, async/RxJS, custom features, testing, events, recipes, API) are read only when needed. Pinned to a specific `@ngrx/signals` version and refreshed with `/ngrx-signals-sync`.
+- `microsoft-agent-framework` — Microsoft Agent Framework guidance (agents as tools, sessions, middleware).
 
 ## Detailed standards — `.claude/rules/`
 
-The full guidelines live in `.claude/rules/` and **load automatically when you edit a matching file** (path-scoped rules). You do not need to open them manually; if one is out of context, `Read` it directly.
+The full guidelines live in `.claude/rules/` and **load automatically when you edit a matching file** (path-scoped rules). If one is out of context, `Read` it directly.
 
-| Area                              | Rule file                                 | Auto-applies to                                                    |
-| --------------------------------- | ----------------------------------------- | ------------------------------------------------------------------ |
-| General C#                        | `.claude/rules/csharp.md`                 | `**/*.cs`                                                          |
-| REST / ASP.NET Core APIs          | `.claude/rules/aspnet-rest-apis.md`       | `**/*.cs`, `**/*.json`                                             |
-| Azure Functions (isolated worker) | `.claude/rules/azure-functions-csharp.md` | `**/*.cs`, `**/host.json`, `**/local.settings.json`, `**/*.csproj` |
-| Blazor components                 | `.claude/rules/blazor.md`                 | `**/*.razor`, `**/*.razor.cs`, `**/*.razor.css`                    |
-| MCP servers in C#                 | `.claude/rules/csharp-mcp-server.md`      | `**/*.cs`, `**/*.csproj`                                           |
+| Area                              | Rule file                                 | Auto-applies to                                                     |
+| --------------------------------- | ----------------------------------------- | ------------------------------------------------------------------- |
+| General C#                        | `.claude/rules/csharp.md`                 | `**/*.cs`                                                           |
+| REST / ASP.NET Core APIs          | `.claude/rules/aspnet-rest-apis.md`       | `**/*.cs`, `**/*.json`                                              |
+| Azure Functions (isolated worker) | `.claude/rules/azure-functions-csharp.md` | `**/*.cs`, `**/host.json`, `**/local.settings.json`, `**/*.csproj`  |
+| Blazor components                 | `.claude/rules/blazor.md`                 | `**/*.razor`, `**/*.razor.cs`, `**/*.razor.css`                     |
+| MCP servers in C#                 | `.claude/rules/csharp-mcp-server.md`      | `**/*.cs`, `**/*.csproj`                                            |
 
 ## MCP servers — see `@.mcp.json`
 
 `.claude/settings.json` sets `enableAllProjectMcpServers: true`, so the servers configured in `@.mcp.json` are available. Use them when relevant:
 
-- **`microsoft-learn`** — Ground .NET/Azure answers in official Microsoft Learn docs. Before answering a version-specific .NET or Azure question, query it (`microsoft_docs_search` → `microsoft_code_sample_search` → `microsoft_docs_fetch`) instead of relying on memory.
-- **`angular-cli`** — Ground Angular answers in the installed Angular version rather than memory (`list_projects` → `get_best_practices` → `search_documentation` → `find_examples`). Use it for components, zoneless, routing, and CLI work; for state management, the `ngrx-signal-store` skill is the source of truth.
-- **`terraform`** — infrastructure-as-code.
+- **`microsoft-learn`** — Ground .NET/Azure answers in official Microsoft Learn docs. Before answering a version-specific .NET, Microsoft.Extensions.AI, Agent Framework, or Azure question, query it (`microsoft_docs_search` → `microsoft_code_sample_search` → `microsoft_docs_fetch`) instead of relying on memory.
+- **`terraform`** — infrastructure-as-code, if deployment automation is added.
 
 ## Delegation rules
 
-- **After implementing or modifying C# code**, delegate a quality review to the `csharp-code-reviewer` subagent (runs on Opus, with the C# skills preloaded). It reports findings; it does not edit files.
-- **After implementing or modifying Angular code**, delegate a quality review to the `angular-code-reviewer` subagent (runs on Opus, with the `angular-developer` and `ngrx-signal-store` skills preloaded). It reports findings; it does not edit files.
-- **When a new feature is implemented, or implementation details need documenting**, delegate to the `se-technical-writer` subagent to author or update Markdown docs under `docs/` (create the folder if it does not exist).
+- **After implementing or modifying C# code**, delegate a quality review to the `csharp-code-reviewer` subagent. It reports findings; it does not edit files.
+- **When a new feature is implemented, or implementation details need documenting**, delegate to the `se-technical-writer` subagent to author or update Markdown docs under `docs/`.
 
 ## Common commands
 
 ```bash
-dotnet build     # compile
-dotnet test      # run xUnit tests
-dotnet format    # apply .editorconfig formatting
+dotnet build                                  # compile (net8.0 + net10.0, warnings are errors)
+dotnet test                                   # unit tests + integration tests (integration auto-skips)
+dotnet pack Enterprise.AI.Middleware -c Release   # produce nupkg + snupkg
+dotnet format                                 # apply .editorconfig formatting
 ```
 
-## Maintenance
-
-- `/ngrx-signals-sync` — check the official NgRx Signals docs for changes and refresh the `ngrx-signal-store` skill if they drifted. Cheap and silent when nothing changed; when something did, it edits the skill and leaves the diff in the working tree for review rather than committing.
+Integration tests run for real only when `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `AZURE_OPENAI_DEPLOYMENT` are set.
