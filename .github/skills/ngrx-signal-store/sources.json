@@ -1,0 +1,148 @@
+{
+  "$comment": "Pinned upstream snapshot for the ngrx-signal-store skill. Maintained by /ngrx-signals-sync. Do not hand-edit shas -- run scripts/check-updates.mjs --pin.",
+  "skill": "ngrx-signal-store",
+  "upstream": {
+    "repo": "ngrx/platform",
+    "branch": "main",
+    "docsRoot": "projects/www/src/app/pages/guide/signals",
+    "rawBase": "https://raw.githubusercontent.com/ngrx/platform/main/",
+    "contentsApi": "https://api.github.com/repos/ngrx/platform/contents",
+    "changelog": "https://raw.githubusercontent.com/ngrx/platform/main/modules/signals/CHANGELOG.md",
+    "packageRegistry": "https://registry.npmjs.org/@ngrx/signals/latest"
+  },
+  "pinned": {
+    "packageVersion": "21.1.1",
+    "pinnedAt": "2026-07-13"
+  },
+  "pages": [
+    {
+      "path": "deep-computed.md",
+      "blobSha": "55d9611eade9cf456b485ea283cefc462693eaad",
+      "mapsTo": [
+        "references/store-composition.md"
+      ]
+    },
+    {
+      "path": "faq.md",
+      "blobSha": "2ab53c8bb8d3e57b28795d4b613246d5136ebac0",
+      "mapsTo": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "path": "index.md",
+      "blobSha": "7dab2b9d43b9631a51340094a89cfe12f0c5eba2",
+      "mapsTo": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "path": "install.md",
+      "blobSha": "09fa156ce16768e7bc95894cf3acef372ae010bd",
+      "mapsTo": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "path": "rxjs-integration.md",
+      "blobSha": "fbb0d35769ed935fca59655511993768373048dd",
+      "mapsTo": [
+        "references/async-and-rxjs.md",
+        "references/api-reference.md",
+        "references/recipes.md"
+      ]
+    },
+    {
+      "path": "signal-method.md",
+      "blobSha": "880048b7e7135f69f4c0f8bf7c6d0fa9ba56f709",
+      "mapsTo": [
+        "references/async-and-rxjs.md",
+        "references/api-reference.md"
+      ]
+    },
+    {
+      "path": "signal-state.md",
+      "blobSha": "82b316b8eb9d801413212ad9f671b1888a32f745",
+      "mapsTo": [
+        "references/store-composition.md"
+      ]
+    },
+    {
+      "path": "signal-store/custom-store-features.md",
+      "blobSha": "5a91f38e03e3866c5da0b5608fdb32b4777e5c80",
+      "mapsTo": [
+        "references/custom-features.md",
+        "references/api-reference.md",
+        "references/recipes.md"
+      ]
+    },
+    {
+      "path": "signal-store/custom-store-properties.md",
+      "blobSha": "cee4540c9543a2ad8cd90839950343ff950e44ab",
+      "mapsTo": [
+        "references/store-composition.md"
+      ]
+    },
+    {
+      "path": "signal-store/entity-management.md",
+      "blobSha": "4ee1a7090a45c99a61723886399455b8b8c458ab",
+      "mapsTo": [
+        "references/entity-management.md",
+        "references/api-reference.md",
+        "references/recipes.md"
+      ]
+    },
+    {
+      "path": "signal-store/events.md",
+      "blobSha": "d290b190672ea9648a208e08b26c1946f5b66e09",
+      "mapsTo": [
+        "references/events-plugin.md",
+        "references/api-reference.md"
+      ]
+    },
+    {
+      "path": "signal-store/index.md",
+      "blobSha": "70c6a1ffea03713e02a3c9bc029b8ad103cfa5d0",
+      "mapsTo": [
+        "references/store-composition.md",
+        "references/api-reference.md"
+      ]
+    },
+    {
+      "path": "signal-store/lifecycle-hooks.md",
+      "blobSha": "18de161aab6a274122e74cdcfecbf2965cff9873",
+      "mapsTo": [
+        "references/store-composition.md"
+      ]
+    },
+    {
+      "path": "signal-store/linked-state.md",
+      "blobSha": "5cedf2aa2cfd08a0d8a23b396ecb9b0d2ed4bf3e",
+      "mapsTo": [
+        "references/store-composition.md"
+      ]
+    },
+    {
+      "path": "signal-store/private-store-members.md",
+      "blobSha": "6df9d828f20d7021a697687d592e3b9f6095d4ea",
+      "mapsTo": [
+        "references/store-composition.md"
+      ]
+    },
+    {
+      "path": "signal-store/state-tracking.md",
+      "blobSha": "45610b5c605dd82963d69ff0b05a617db9e0e888",
+      "mapsTo": [
+        "references/store-composition.md",
+        "references/recipes.md"
+      ]
+    },
+    {
+      "path": "signal-store/testing.md",
+      "blobSha": "89adb2557e0a788513e96ef2a9e44592f2d9b532",
+      "mapsTo": [
+        "references/testing.md"
+      ]
+    }
+  ]
+}

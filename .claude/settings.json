@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(/.claude/skills/ngrx-signal-store/**)",
+      "Bash(node .claude/skills/ngrx-signal-store/scripts/check-updates.mjs --pin)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(node .claude/skills/ngrx-signal-store/scripts/check-updates.mjs)",
+      "Bash(sed -i 's/\"blobSha\": \"89adb2557e0a788513e96ef2a9e44592f2d9b532\"/\"blobSha\": \"0000000000000000000000000000000000000000\"/' .claude/skills/ngrx-signal-store/sources.json)",
+      "Bash(grep -c '```' \"C:/Users/Rorro/source/repos/awesome-claude-copilot/.claude/skills/ngrx-signal-store/references/store-composition.md\")",
+      "PowerShell(node .claude\\\\skills\\\\ngrx-signal-store\\\\scripts\\\\check-updates.mjs --json; echo \"exit=$LASTEXITCODE\")",
+      "WebFetch(domain:angular.dev)",
+      "mcp__angular-cli__list_projects",
+      "mcp__angular-cli__get_best_practices",
+      "mcp__angular-cli__search_documentation",
+      "Bash(git mv *)",
+      "Bash(node -e ' *)",
+      "Bash(SCRATCH=C:/Users/Rorro/AppData/Local/Temp/claude/c--Users-Rorro-source-repos-awesome-claude-copilot/cc8dfcc7-f289-4a08-b8e7-2e71691d0168/scratchpad node -e ' *)"
+    ]
+  },
+  "model": "fable",
+  "availableModels": [
+    "fable"
+  ],
+  "enableAllProjectMcpServers": true,
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "microsoft-docs@claude-plugins-official": true,
+    "azure@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "sonarqube@claude-plugins-official": true
+  }
+}
