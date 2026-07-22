@@ -52,12 +52,22 @@ public sealed class ActivityStatusTemplates
     /// Gets or sets a delegate that formats the header for an event, overriding the string
     /// templates entirely. Return <see langword="null"/> to suppress the header.
     /// </summary>
+    /// <remarks>
+    /// The delegate receives a probe event whose <see cref="ChatActivityEvent.Header"/> and
+    /// <see cref="ChatActivityEvent.Subheader"/> are <b>not</b> pre-populated with the computed
+    /// defaults: for <see cref="ChatActivityEventKind.ToolCallStarted"/> both are
+    /// <see langword="null"/>, while for <see cref="ChatActivityEventKind.StatusReported"/> the
+    /// probe's <see cref="ChatActivityEvent.Subheader"/> carries the reported message (and
+    /// <see cref="ChatActivityEvent.Progress"/>/<see cref="ChatActivityEvent.ProgressTotal"/>
+    /// carry the numeric progress). Use the tool metadata on the probe to compose custom text.
+    /// </remarks>
     public Func<ChatActivityEvent, string?>? FormatHeader { get; set; }
 
     /// <summary>
     /// Gets or sets a delegate that formats the subheader for an event, overriding the string
     /// templates entirely. Return <see langword="null"/> to suppress the subheader.
     /// </summary>
+    /// <remarks><inheritdoc cref="FormatHeader" path="/remarks"/></remarks>
     public Func<ChatActivityEvent, string?>? FormatSubheader { get; set; }
 
     /// <summary>

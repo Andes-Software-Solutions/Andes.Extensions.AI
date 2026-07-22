@@ -8,7 +8,10 @@ namespace Enterprise.AI.Middleware.Tracking;
 /// </summary>
 /// <remarks>
 /// Instances are published to <see cref="IChatActivityObserver.OnActivityEvent"/> in the order
-/// the activities occurred. Events never carry prompt content, tool arguments, or tool results.
+/// the activities occurred, except <see cref="ChatActivityEventKind.StatusReported"/> events
+/// bridged from MCP progress notifications, which may arrive on a different thread and
+/// unordered relative to request-path events (see the <see cref="IChatActivityObserver"/>
+/// remarks). Events never carry prompt content, tool arguments, or tool results.
 /// <see cref="ErrorMessage"/> is populated only when
 /// <see cref="ToolTrackingOptions.IncludeErrorMessages"/> is enabled, because exception messages
 /// can echo argument values; sanitize events before forwarding them to untrusted clients.
@@ -89,6 +92,11 @@ public sealed record ChatActivityEvent
     /// <see cref="ChatActivityEventKind.StatusReported"/> events — typically a percentage or a
     /// count of completed items — or <see langword="null"/> when no numeric progress was supplied.
     /// </summary>
+    /// <remarks>
+    /// MCP servers report progress as single-precision values; fractional progress bridged from
+    /// MCP may therefore show float-to-double widening artifacts (for example
+    /// <c>33.3f</c> → <c>33.29999923706055</c>). Integer step counts are unaffected.
+    /// </remarks>
     public double? Progress { get; init; }
 
     /// <summary>

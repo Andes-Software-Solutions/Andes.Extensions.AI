@@ -61,7 +61,9 @@ public sealed class InMemoryMcpFixture : IAsyncLifetime
                             {
                                 Progress = i,
                                 Total = steps,
-                                Message = $"step {i} of {steps}",
+                                // Step 2 omits the message so tests cover the synthesized
+                                // "{progress}/{total}" subheader fallback.
+                                Message = i == 2 ? null : $"step {i} of {steps}",
                             });
                         }
 

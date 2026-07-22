@@ -38,4 +38,7 @@ internal static partial class Log
 
     [LoggerMessage(EventId = 9, Level = LogLevel.Warning, Message = "Activity observer {ObserverType} threw; the chat request is unaffected.")]
     public static partial void ObserverThrew(ILogger logger, Exception exception, string observerType);
+
+    [LoggerMessage(EventId = 10, Level = LogLevel.Warning, Message = "The MCP progress bridge for scope {ScopeId} threw while publishing; the notification was dropped and the tool call is unaffected.")]
+    public static partial void ProgressBridgeThrew(ILogger logger, Exception exception, string scopeId);
 }

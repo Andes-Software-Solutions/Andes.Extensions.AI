@@ -37,11 +37,15 @@ public sealed class McpProgressTests : IClassFixture<InMemoryMcpFixture>
         AIFunction tool = _mcp.CountDownTool.WithTrackingMetadata(_mcp.Client);
         var ack = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _mcp.ProgressAck = ack;
+        int statusCount = 0;
         var observer = new RecordingObserver
         {
+            // Notification handlers may run out of order, so release the gate on count rather
+            // than on seeing the final step's value.
             EventCallback = e =>
             {
-                if (e.Kind == ChatActivityEventKind.StatusReported && e.Progress == 3)
+                if (e.Kind == ChatActivityEventKind.StatusReported &&
+                    Interlocked.Increment(ref statusCount) == 3)
                 {
                     ack.TrySetResult();
                 }
@@ -63,12 +67,13 @@ public sealed class McpProgressTests : IClassFixture<InMemoryMcpFixture>
             Assert.Equal(3, s.ProgressTotal);
         });
 
-        // Notification dispatch order is not guaranteed, so assert content as a set.
+        // Notification dispatch order is not guaranteed, so assert content as a set. Step 2 has
+        // no server message, exercising the synthesized "{progress}/{total}" fallback.
         Assert.Equal(
-            new[] { "step 1 of 3", "step 2 of 3", "step 3 of 3" },
+            new[] { "2/3", "step 1 of 3", "step 3 of 3" },
             statuses.Select(s => s.Subheader).Order().ToArray());
-        ChatActivityEvent secondStep = statuses.Single(s => s.Subheader == "step 2 of 3");
-        Assert.Equal(2, secondStep.Progress);
+        ChatActivityEvent secondStep = statuses.Single(s => s.Progress == 2);
+        Assert.Equal("2/3", secondStep.Subheader);
 
         ChatActivityEvent started = observer.EventsOfKind(ChatActivityEventKind.ToolCallStarted).Single();
         Assert.All(statuses, s => Assert.Equal(started.ScopeId, s.ScopeId));

@@ -82,7 +82,7 @@ The resulting `StatusReported` event uses the message as its `Subheader` and der
 
 **MCP progress notifications** are bridged automatically (opt out with `ToolTrackingOptions.EnableMcpProgress = false`): when an MCP tool is invoked, the request carries a progress token and every `notifications/progress` the server sends becomes a `StatusReported` event with `Progress`/`ProgressTotal` populated and the server's `Message` (or `"{progress}/{total}"`) as the subheader. Two caveats:
 
-- Notifications are dispatched asynchronously by the MCP client — their order is not guaranteed, and for a tool that returns almost instantly, trailing notifications can arrive after `ToolCallCompleted` or be dropped once the call completes. Long-running tools (the intended use for progress) are unaffected.
+- Notifications are dispatched asynchronously on the MCP client's receive loop — on a different thread than the request path, with no guaranteed order, so observers must be thread-safe. For a tool that returns almost instantly, trailing notifications can arrive after `ToolCallCompleted`, be dropped by the MCP client once the call completes, or be dropped by the middleware if the whole request already completed (`OnRequestCompleted` is always terminal). Long-running tools (the intended use for progress) are unaffected.
 - The bridge activates only for tools that are `McpClientTool` instances, directly or annotated via `WithTrackingMetadata`. An MCP tool wrapped in your own `DelegatingAIFunction` is invoked unchanged — custom behavior is never bypassed — but without progress bridging.
 
 ## JSON serialization
