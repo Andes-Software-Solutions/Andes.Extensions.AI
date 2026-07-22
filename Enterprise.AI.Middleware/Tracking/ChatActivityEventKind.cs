@@ -39,4 +39,11 @@ public enum ChatActivityEventKind
     /// The top-level chat request terminated with an exception or cancellation.
     /// </summary>
     RequestFailed = 6,
+
+    /// <summary>
+    /// A tool reported custom status or progress while executing — either explicitly via
+    /// <see cref="ChatActivityScope.ReportStatus"/> or automatically from an MCP server's
+    /// progress notifications.
+    /// </summary>
+    StatusReported = 7,
 }

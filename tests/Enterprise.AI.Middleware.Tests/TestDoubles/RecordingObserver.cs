@@ -33,12 +33,20 @@ public sealed class RecordingObserver : IChatActivityObserver
         }
     }
 
+    /// <summary>
+    /// Gets or sets a callback invoked after each event is recorded, for tests that need to
+    /// react to event arrival (for example releasing a gate).
+    /// </summary>
+    public Action<ChatActivityEvent>? EventCallback { get; set; }
+
     public void OnActivityEvent(ChatActivityEvent activityEvent)
     {
         lock (_gate)
         {
             _events.Add(activityEvent);
         }
+
+        EventCallback?.Invoke(activityEvent);
     }
 
     public void OnRequestCompleted(ChatActivityReport report)

@@ -11,6 +11,7 @@ Everything the tool-tracking middleware does is controlled through `ToolTracking
 | `Templates` | `ActivityStatusTemplates` | see below | Display strings for status headers/subheaders (get-only; mutate its properties). |
 | `ArgumentLogging` | `ToolArgumentLogging` | `None` | Whether tool-call arguments are written to structured logs. |
 | `IncludeErrorMessages` | `bool` | `false` | Whether failure events carry the exception message in `ChatActivityEvent.ErrorMessage`; off by default because exception messages can echo argument values or user input. `ErrorType` is always populated. |
+| `EnableMcpProgress` | `bool` | `true` | Bridge MCP servers' progress notifications into `StatusReported` events automatically. |
 | `TimeProvider` | `TimeProvider` | `TimeProvider.System` | Clock for timestamps and durations; override in tests. |
 | `DefaultMcpServerName` | `string` | `"MCP"` | Display name for MCP tools whose server name could not be resolved. |
 | `McpServerNameResolver` | `Func<AIFunction, string?>?` | `null` | Resolves the MCP server display name for unannotated MCP tools. |
@@ -237,6 +238,16 @@ ChatOptions options = new ChatOptions
     Tools = tools,
 }.WithActivityTag(Context.ConnectionId); // e.g. inside a SignalR hub method
 ```
+
+## `EnableMcpProgress`
+
+When an MCP tool is invoked, the middleware adds a per-invocation progress token to the call and converts every progress notification the server sends into a `ChatActivityEventKind.StatusReported` event (header `"Calling {Server} MCP"`, `Progress`/`ProgressTotal` populated) — on both the observer and the in-band stream. Set to `false` to disable the bridge:
+
+```csharp
+options.EnableMcpProgress = false;
+```
+
+The bridge activates only for tools whose function is an `McpClientTool`, directly or annotated via `WithTrackingMetadata`; MCP tools inside your own `DelegatingAIFunction` wrappers are invoked unchanged (no bridging, no bypassed behavior). Tools can also report status explicitly from any tool body — see `ChatActivityScope.ReportStatus` in [status-events.md](status-events.md#reporting-status-and-progress-from-inside-tools).
 
 ## `IncludeErrorMessages` — privacy
 

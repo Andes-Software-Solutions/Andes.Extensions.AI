@@ -20,6 +20,8 @@ Everything is surfaced on **two channels at once**:
 - **In-band** — `ActivityStatusContent` (a custom `AIContent`) injected into the `ChatResponseUpdate` stream, so any streaming consumer renders live status inline, plus a final update carrying the request's total usage.
 - **Out-of-band** — an injectable `IChatActivityObserver` receiving every `ChatActivityEvent` and the final `ChatActivityReport`, ready to fan out over SignalR or SSE.
 
+Tools can push their own progress into both channels while they run — explicitly via `ChatActivityScope.ReportStatus("Indexing", progress: 3, progressTotal: 12)` from any tool body, and automatically for MCP tools, whose server progress notifications are bridged into the same status events with numeric progress for progress bars.
+
 ## Install
 
 ```bash

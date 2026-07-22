@@ -58,4 +58,37 @@ public sealed class McpToolTrackingIntegrationTests : IClassFixture<AzureOpenAIF
         ChatActivityReport report = Assert.Single(observer.Reports);
         Assert.Contains(report.Root.Children, scope => scope.ToolKind == ToolKind.Mcp && scope.ToolName == "echo");
     }
+
+    [SkippableFact]
+    public async Task GetStreamingResponseAsync_McpToolReportsProgress_EmitsStatusReportedEvents()
+    {
+        _azure.SkipUnlessConfigured();
+
+        await using McpClient mcpClient = await McpClient.CreateAsync(CreateTestServerTransport());
+        IList<McpClientTool> mcpTools = await mcpClient.ListToolsAsync();
+        IList<AITool> trackedTools = mcpTools.WithTrackingMetadata(mcpClient);
+
+        var observer = new CollectingObserver();
+        IChatClient client = new ChatClientBuilder(_azure.CreateProviderClient())
+            .UseToolTracking(new ToolTrackingOptions(), observer)
+            .UseFunctionInvocation()
+            .Build();
+
+        await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
+            [new ChatMessage(ChatRole.User, "Use the count_down tool with steps set to 3, then confirm.")],
+            new ChatOptions { Tools = trackedTools, Temperature = 0 }))
+        {
+        }
+
+        IReadOnlyList<ChatActivityEvent> statuses =
+            [.. observer.Events.Where(e => e.Kind == ChatActivityEventKind.StatusReported)];
+        Assert.NotEmpty(statuses);
+        Assert.All(statuses, s =>
+        {
+            Assert.Equal(ToolKind.Mcp, s.ToolKind);
+            Assert.Equal("count_down", s.ToolName);
+            Assert.Equal("Calling Enterprise Test MCP MCP", s.Header);
+            Assert.NotNull(s.Progress);
+        });
+    }
 }

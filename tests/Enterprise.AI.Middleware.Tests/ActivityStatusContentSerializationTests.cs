@@ -19,6 +19,8 @@ public sealed class ActivityStatusContentSerializationTests
             ParentScopeId = "scope-0",
             Timestamp = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero),
             Usage = new UsageDetails { InputTokenCount = 12, OutputTokenCount = 3, TotalTokenCount = 15 },
+            Progress = 4,
+            ProgressTotal = 9,
         };
     }
 
@@ -53,6 +55,8 @@ public sealed class ActivityStatusContentSerializationTests
         Assert.Equal(original.ParentScopeId, typed.ParentScopeId);
         Assert.Equal(original.Timestamp, typed.Timestamp);
         Assert.Equal(original.Usage!.TotalTokenCount, typed.Usage!.TotalTokenCount);
+        Assert.Equal(original.Progress, typed.Progress);
+        Assert.Equal(original.ProgressTotal, typed.ProgressTotal);
     }
 
     [Fact]

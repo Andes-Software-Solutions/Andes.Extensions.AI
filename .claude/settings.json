@@ -41,7 +41,10 @@
       "Bash(dotnet run *)",
       "mcp__microsoft-learn__microsoft_docs_search",
       "PowerShell(dotnet format \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.slnx\" --verify-no-changes 2>&1 | Select-Object -Last 5; \"format-exit=$LASTEXITCODE\")",
-      "PowerShell(git -C \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\" status --short)"
+      "PowerShell(git -C \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\" status --short)",
+      "PowerShell($results = @\\(\\); for \\($i = 1; $i -le 6; $i++\\) { $out = dotnet test \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\tests\\\\Enterprise.AI.Middleware.Tests\\\\Enterprise.AI.Middleware.Tests.csproj\" --no-build 2>&1 | Select-String -Pattern \"\\(Passed!|Failed! \\)\" | Select-Object -First 1; $results += \"$i => $out\" }; $results)",
+      "PowerShell($results = @\\(\\); for \\($i = 1; $i -le 5; $i++\\) { $out = dotnet test \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\tests\\\\Enterprise.AI.Middleware.Tests\\\\Enterprise.AI.Middleware.Tests.csproj\" $\\(if \\($i -gt 1\\) { \"--no-build\" }\\) 2>&1 | Select-String -Pattern \"\\(Passed!|Failed! \\)\" | Select-Object -First 1; $results += \"$i => $out\" }; $results)",
+      "PowerShell(dotnet test \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.slnx\" -c Release --no-build 2>&1 | Select-String -Pattern \"\\(Passed!|Skipped!|Failed! \\)\" | Select-Object -First 4; dotnet pack \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.Middleware\\\\Enterprise.AI.Middleware.csproj\" -c Release 2>&1 | Select-String -Pattern \"\\(Successfully created|error\\)\" | Select-Object -First 3; dotnet format \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.slnx\" --verify-no-changes 2>&1 | Select-Object -Last 3; \"format-exit=$LASTEXITCODE\")"
     ]
   },
   "model": "fable",

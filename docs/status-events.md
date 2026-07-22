@@ -15,6 +15,7 @@ The tool-tracking middleware reports activity on two channels: **out-of-band** `
 | `UsageReported` | The provider reported token usage for the current scope (each streaming `UsageContent`, or `ChatResponse.Usage` for non-streaming — including from nested tracked pipelines). Carries `Usage`, `ModelId`, `ProviderName`. | Yes | No |
 | `RequestCompleted` | The top-level request completed successfully. Carries `Duration` and total `Usage`. | Yes | Yes, as the final synthetic update² |
 | `RequestFailed` | The top-level request threw, was canceled, or its stream was abandoned. Carries `Duration` and `ErrorType` (`ErrorMessage` only when `IncludeErrorMessages` is enabled). | Yes | No |
+| `StatusReported` | A tool reported custom status or progress while executing — explicitly via `ChatActivityScope.ReportStatus(...)`, or automatically from an MCP server's progress notifications (see [MCP progress](#reporting-status-and-progress-from-inside-tools)). Carries `Subheader` (the message), the scope's contextual `Header`, and optionally `Progress`/`ProgressTotal`. | Yes | Yes¹ |
 
 ¹ Only into the **root** stream, and only while `ToolTrackingOptions.EnableInBandStatusUpdates` is `true` (the default). Nested streams never receive in-band injection. Non-streaming requests have no in-band channel at all.
 
@@ -39,6 +40,8 @@ The tool-tracking middleware reports activity on two channels: **out-of-band** `
 | `Timestamp` | `DateTimeOffset` | When the activity occurred (required). |
 | `Duration` | `TimeSpan?` | Elapsed time; populated on completion and failure events. |
 | `Usage` | `UsageDetails?` | Token usage; populated on `UsageReported` and terminal request events. |
+| `Progress` | `double?` | Numeric progress so far on `StatusReported` events (a percentage or completed-item count), or `null` when no numeric progress was supplied. |
+| `ProgressTotal` | `double?` | Total progress required (the denominator for `Progress`), when known. |
 | `ModelId` | `string?` | Model that produced the usage, when known. |
 | `ProviderName` | `string?` | Provider that served the request (from the inner client's `ChatClientMetadata`), when known. |
 | `ErrorType` | `string?` | Full exception type name on failure events. |
@@ -60,6 +63,27 @@ The tool-tracking middleware reports activity on two channels: **out-of-band** `
 | `ParentScopeId` | `string?` | Parent scope id, or `null` for the root scope. |
 | `Timestamp` | `DateTimeOffset` | When the underlying activity occurred. |
 | `Usage` | `UsageDetails?` | Token usage; populated on the final `RequestCompleted` update. |
+| `Progress` | `double?` | Numeric progress so far on `StatusReported` updates, or `null`. |
+| `ProgressTotal` | `double?` | Total progress required, when known. |
+
+## Reporting status and progress from inside tools
+
+Any tool body can publish a custom status line to both channels with `ChatActivityScope.ReportStatus`:
+
+```csharp
+AIFunction tool = AIFunctionFactory.Create(async (string query) =>
+{
+    ChatActivityScope.ReportStatus("Searching archives", progress: 2, progressTotal: 5);
+    return await SearchAsync(query);
+}, "search_archives");
+```
+
+The resulting `StatusReported` event uses the message as its `Subheader` and derives its `Header` from the executing scope: a tool running under an agent renders under `"Calling {Agent} Agent"`, an MCP tool under `"Calling {Server} MCP"`, and a plain tool under the `"Calling Tool(s)"` header. The call is a no-op when no tracked request is ambient, so tools remain usable outside tracked pipelines. This works at any nesting depth — a tool inside an agent's own tracked pipeline reports into the root request's stream and observer.
+
+**MCP progress notifications** are bridged automatically (opt out with `ToolTrackingOptions.EnableMcpProgress = false`): when an MCP tool is invoked, the request carries a progress token and every `notifications/progress` the server sends becomes a `StatusReported` event with `Progress`/`ProgressTotal` populated and the server's `Message` (or `"{progress}/{total}"`) as the subheader. Two caveats:
+
+- Notifications are dispatched asynchronously by the MCP client — their order is not guaranteed, and for a tool that returns almost instantly, trailing notifications can arrive after `ToolCallCompleted` or be dropped once the call completes. Long-running tools (the intended use for progress) are unaffected.
+- The bridge activates only for tools that are `McpClientTool` instances, directly or annotated via `WithTrackingMetadata`. An MCP tool wrapped in your own `DelegatingAIFunction` is invoked unchanged — custom behavior is never bypassed — but without progress bridging.
 
 ## JSON serialization
 

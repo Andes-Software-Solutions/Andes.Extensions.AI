@@ -28,6 +28,40 @@ public static class ChatActivityScope
     }
 
     /// <summary>
+    /// Publishes a custom status line from inside a tool to the current tracked request — to the
+    /// activity observer and, in-band, to the root request's streaming response as a
+    /// <see cref="ChatActivityEventKind.StatusReported"/> update.
+    /// </summary>
+    /// <param name="message">The status text, rendered as the update's subheader.</param>
+    /// <param name="progress">Optional numeric progress so far (a percentage or completed-item count).</param>
+    /// <param name="progressTotal">Optional total progress required, when known.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="message"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// The header is derived from the executing scope, so a tool running under an agent renders
+    /// under <c>"Calling {Agent} Agent"</c> and an MCP tool under <c>"Calling {Server} MCP"</c>.
+    /// When no tracked request is ambient the call is a no-op, so tools remain usable outside
+    /// tracked pipelines.
+    /// </remarks>
+    /// <example>
+    /// <code language="csharp">
+    /// AIFunction tool = AIFunctionFactory.Create(async (string query) =>
+    /// {
+    ///     ChatActivityScope.ReportStatus("Searching archives", progress: 2, progressTotal: 5);
+    ///     return await SearchAsync(query);
+    /// }, "search_archives");
+    /// </code>
+    /// </example>
+    public static void ReportStatus(string message, double? progress = null, double? progressTotal = null)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        if (_currentFlow.Value is { } flow)
+        {
+            flow.Context.PublishStatus(flow.Scope, message, progress, progressTotal);
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the full ambient flow state (scope plus owning context) for internal use.
     /// </summary>
     internal static ActivityFlowState? CurrentFlow

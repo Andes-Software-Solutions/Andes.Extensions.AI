@@ -187,6 +187,24 @@ Register the observer as a singleton (shown in the pipeline snippet above). Any 
 
 Null token counts throughout the report mean *the provider did not report a value* — never zero. See [Usage Tracking](usage-tracking.md) for the full semantics.
 
+## Report progress from inside tools
+
+Long-running tools can push custom status lines into both channels while they execute — no extra wiring, at any nesting depth:
+
+```csharp
+using Enterprise.AI.Middleware.Tracking;
+
+AIFunction tool = AIFunctionFactory.Create(async (string query) =>
+{
+    ChatActivityScope.ReportStatus("Searching archives", progress: 2, progressTotal: 5);
+    return await SearchAsync(query);
+}, "search_archives");
+```
+
+Each call produces a `StatusReported` event/update whose header matches the executing context (`"Calling Tool(s)"`, `"Calling {Agent} Agent"`, or `"Calling {Server} MCP"`) with your message as the subheader. Outside a tracked request the call is a harmless no-op.
+
+**MCP tools get this for free**: progress notifications sent by an MCP server are bridged into the same `StatusReported` events automatically, including numeric `Progress`/`ProgressTotal` for progress bars (opt out with `ToolTrackingOptions.EnableMcpProgress = false`). See [Status Events](status-events.md#reporting-status-and-progress-from-inside-tools) for details and caveats.
+
 ## Running the library's tests
 
 Unit tests (`tests/Enterprise.AI.Middleware.Tests`) run with plain `dotnet test` and need no external services — they use a scripted chat client and an in-process MCP server. The integration tests (`tests/Enterprise.AI.Middleware.IntegrationTests`) exercise real Azure OpenAI, MCP (via the in-repo stdio server `tests/Enterprise.AI.Middleware.TestMcpServer`), and Microsoft Agent Framework wiring; they automatically skip unless these environment variables are set:

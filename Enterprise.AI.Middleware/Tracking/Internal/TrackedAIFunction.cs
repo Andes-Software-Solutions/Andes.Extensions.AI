@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using ModelContextProtocol.Client;
 
 namespace Enterprise.AI.Middleware.Tracking.Internal;
 
@@ -46,7 +47,8 @@ internal sealed class TrackedAIFunction : DelegatingAIFunction
         ChatActivityScope.CurrentFlow = new ActivityFlowState(context, scope);
         try
         {
-            object? result = await base.InvokeCoreAsync(arguments, cancellationToken).ConfigureAwait(false);
+            object? result = await InvokeTargetAsync(context, scope, arguments, cancellationToken)
+                .ConfigureAwait(false);
             context.CompleteScope(scope, error: null);
             return result;
         }
@@ -59,6 +61,36 @@ internal sealed class TrackedAIFunction : DelegatingAIFunction
         {
             ChatActivityScope.CurrentFlow = flow;
         }
+    }
+
+    private ValueTask<object?> InvokeTargetAsync(
+        ActivityContext context,
+        ActivityScope scope,
+        AIFunctionArguments arguments,
+        CancellationToken cancellationToken)
+    {
+        if (context.Options.EnableMcpProgress && ResolveMcpTool() is { } mcpTool)
+        {
+            // Progress notifications arrive on the MCP client's receive loop, outside this
+            // invocation's async flow, so the context and scope are bound into the IProgress
+            // rather than resolved ambiently at report time.
+            McpClientTool progressTool = mcpTool.WithProgress(new ScopedActivityProgress(context, scope));
+            return progressTool.InvokeAsync(arguments, cancellationToken);
+        }
+
+        return base.InvokeCoreAsync(arguments, cancellationToken);
+    }
+
+    private McpClientTool? ResolveMcpTool()
+    {
+        // Only the shapes this library produces are unwrapped; a user's own DelegatingAIFunction
+        // around an MCP tool may add invocation behavior that must not be bypassed.
+        return InnerFunction switch
+        {
+            McpClientTool direct => direct,
+            AnnotatedAIFunction { Inner: McpClientTool annotated } => annotated,
+            _ => null,
+        };
     }
 
     private void LogArguments(ActivityContext context, AIFunctionArguments arguments)

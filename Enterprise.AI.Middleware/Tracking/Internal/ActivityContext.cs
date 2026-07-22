@@ -199,6 +199,53 @@ internal sealed class ActivityContext
     }
 
     /// <summary>
+    /// Publishes a <see cref="ChatActivityEventKind.StatusReported"/> event for custom status or
+    /// progress raised inside a tool, rendered under the scope's contextual header.
+    /// </summary>
+    public void PublishStatus(ActivityScope scope, string message, double? progress, double? progressTotal)
+    {
+        ActivityStatusTemplates templates = Options.Templates;
+        string? header = scope switch
+        {
+            { NearestAgentName: { } agentName } => templates.FormatDefaultHeader(ToolKind.Agent, agentName),
+            { ToolKind: ToolKind.Mcp } => templates.FormatDefaultHeader(ToolKind.Mcp, scope.SourceName),
+            { ToolKind: not null } => templates.PlainToolHeader,
+            _ => null,
+        };
+
+        ChatActivityEvent probe = new()
+        {
+            Kind = ChatActivityEventKind.StatusReported,
+            RequestId = RequestId,
+            ScopeId = scope.Id,
+            ParentScopeId = scope.ParentId,
+            ToolKind = scope.ToolKind,
+            ToolName = scope.Name,
+            SourceName = scope.SourceName,
+            Timestamp = _timeProvider.GetUtcNow(),
+            Subheader = message,
+            Progress = progress,
+            ProgressTotal = progressTotal,
+            ActivityTag = _activityTag,
+        };
+
+        string? subheader = message;
+        if (templates.FormatHeader is { } formatHeader)
+        {
+            header = formatHeader(probe);
+        }
+
+        if (templates.FormatSubheader is { } formatSubheader)
+        {
+            subheader = formatSubheader(probe);
+        }
+
+        ChatActivityEvent status = probe with { Header = header, Subheader = subheader };
+        NotifyObserver(status);
+        WriteInBand(status);
+    }
+
+    /// <summary>
     /// Records token usage against a scope and the per-model rollups, publishing a
     /// <see cref="ChatActivityEventKind.UsageReported"/> event.
     /// </summary>
@@ -340,6 +387,8 @@ internal sealed class ActivityContext
             ParentScopeId = activityEvent.ParentScopeId,
             Timestamp = activityEvent.Timestamp,
             Usage = activityEvent.Usage,
+            Progress = activityEvent.Progress,
+            ProgressTotal = activityEvent.ProgressTotal,
         };
 
         return new ChatResponseUpdate(ChatRole.Assistant, [content]);

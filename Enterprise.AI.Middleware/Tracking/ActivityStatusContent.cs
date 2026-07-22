@@ -66,4 +66,17 @@ public sealed class ActivityStatusContent : AIContent
     /// terminal request updates.
     /// </summary>
     public UsageDetails? Usage { get; set; }
+
+    /// <summary>
+    /// Gets or sets the numeric progress reported so far on
+    /// <see cref="ChatActivityEventKind.StatusReported"/> updates, or <see langword="null"/>
+    /// when no numeric progress was supplied.
+    /// </summary>
+    public double? Progress { get; set; }
+
+    /// <summary>
+    /// Gets or sets the total progress required (the denominator for <see cref="Progress"/>),
+    /// when known.
+    /// </summary>
+    public double? ProgressTotal { get; set; }
 }

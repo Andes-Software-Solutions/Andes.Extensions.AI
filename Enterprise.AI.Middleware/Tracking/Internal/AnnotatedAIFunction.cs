@@ -23,4 +23,10 @@ internal sealed class AnnotatedAIFunction : DelegatingAIFunction
 
     /// <inheritdoc/>
     public override IReadOnlyDictionary<string, object?> AdditionalProperties => _additionalProperties;
+
+    /// <summary>
+    /// Gets the wrapped function, so sibling internals can resolve the underlying tool without
+    /// reflection.
+    /// </summary>
+    public AIFunction Inner => InnerFunction;
 }

@@ -41,6 +41,20 @@ public sealed class ToolTrackingOptions
     public bool IncludeErrorMessages { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether progress notifications from MCP servers are
+    /// bridged into <see cref="ChatActivityEventKind.StatusReported"/> events automatically.
+    /// The default is <see langword="true"/>.
+    /// </summary>
+    /// <remarks>
+    /// The bridge activates for tools whose underlying function is an
+    /// <c>McpClientTool</c>, either directly or annotated via
+    /// <see cref="McpToolTrackingExtensions"/>. MCP tools wrapped in custom
+    /// <see cref="Microsoft.Extensions.AI.DelegatingAIFunction"/> layers are invoked unchanged,
+    /// so their custom behavior is never bypassed — at the cost of no progress bridging.
+    /// </remarks>
+    public bool EnableMcpProgress { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets the clock used for timestamps and durations. The default is
     /// <see cref="TimeProvider.System"/>. Override in tests for deterministic timing.
     /// </summary>
@@ -78,6 +92,7 @@ public sealed class ToolTrackingOptions
             EnableFinalUsageUpdate = EnableFinalUsageUpdate,
             ArgumentLogging = ArgumentLogging,
             IncludeErrorMessages = IncludeErrorMessages,
+            EnableMcpProgress = EnableMcpProgress,
             TimeProvider = TimeProvider,
             DefaultMcpServerName = DefaultMcpServerName,
             McpServerNameResolver = McpServerNameResolver,

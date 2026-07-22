@@ -85,6 +85,18 @@ public sealed record ChatActivityEvent
     public UsageDetails? Usage { get; init; }
 
     /// <summary>
+    /// Gets the numeric progress reported so far on
+    /// <see cref="ChatActivityEventKind.StatusReported"/> events — typically a percentage or a
+    /// count of completed items — or <see langword="null"/> when no numeric progress was supplied.
+    /// </summary>
+    public double? Progress { get; init; }
+
+    /// <summary>
+    /// Gets the total progress required (the denominator for <see cref="Progress"/>), when known.
+    /// </summary>
+    public double? ProgressTotal { get; init; }
+
+    /// <summary>
     /// Gets the identifier of the model that produced the usage, when known.
     /// </summary>
     public string? ModelId { get; init; }
