@@ -29,13 +29,6 @@ internal sealed class ScopedActivityProgress : IProgress<ProgressNotificationVal
     /// <inheritdoc/>
     public void Report(ProgressNotificationValue value)
     {
-        // Deliberate defense at the SDK deserialization boundary: the parameter is annotated
-        // non-nullable, but the value originates from remote JSON.
-        if (value is null)
-        {
-            return;
-        }
-
         try
         {
             string message = value.Message ?? FormatProgress(value);

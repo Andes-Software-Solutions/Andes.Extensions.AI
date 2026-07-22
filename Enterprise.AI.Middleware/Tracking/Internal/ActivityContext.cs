@@ -200,9 +200,11 @@ internal sealed class ActivityContext
 
     /// <summary>
     /// Publishes a <see cref="ChatActivityEventKind.StatusReported"/> event for custom status or
-    /// progress raised inside a tool, rendered under the scope's contextual header. Publishes
-    /// arriving after the request completed (late MCP notifications) are dropped so that
-    /// <see cref="IChatActivityObserver.OnRequestCompleted"/> remains terminal.
+    /// progress raised inside a tool, rendered under the scope's contextual header. Statuses
+    /// arriving after the request completed (late MCP notifications) are dropped on a best-effort
+    /// basis: the completion gate is check-then-publish, so a notification racing
+    /// <see cref="Complete"/> may rarely be delivered after
+    /// <see cref="IChatActivityObserver.OnRequestCompleted"/>.
     /// </summary>
     public void PublishStatus(ActivityScope scope, string message, double? progress, double? progressTotal)
     {

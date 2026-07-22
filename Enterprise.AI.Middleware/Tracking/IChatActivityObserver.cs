@@ -15,8 +15,9 @@ namespace Enterprise.AI.Middleware.Tracking;
 /// The exception is <see cref="ChatActivityEventKind.StatusReported"/> events bridged from MCP
 /// progress notifications: those are dispatched from the MCP client's receive loop — on a
 /// different thread, concurrently with request-path events, and in no guaranteed order relative
-/// to them. Implementations must be thread-safe. No event is delivered after
-/// <see cref="OnRequestCompleted"/>; late MCP notifications are dropped.
+/// to them. Implementations must be thread-safe. Late MCP notifications are dropped on a
+/// best-effort basis; a notification racing request completion may rarely be delivered after
+/// <see cref="OnRequestCompleted"/>.
 /// </para>
 /// </remarks>
 public interface IChatActivityObserver

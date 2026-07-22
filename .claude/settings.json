@@ -60,7 +60,8 @@
       "Bash(dotnet build *)",
       "Bash(dotnet test *)",
       "PowerShell($results = @\\(\\); for \\($i = 1; $i -le 4; $i++\\) { $out = dotnet test \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.slnx\" -c Release --no-build 2>&1 | Select-String -Pattern \"\\(Passed!|Failed! |Skipped!\\)\" ; $results += \"run ${i}: $\\($out -join ' // '\\)\" }; $results)",
-      "PowerShell(dotnet pack \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.Middleware\\\\Enterprise.AI.Middleware.csproj\" -c Release 2>&1 | Select-String -Pattern \"\\(Successfully created|error\\)\" | Select-Object -First 3; dotnet format \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.slnx\" --verify-no-changes 2>&1 | Select-Object -Last 2; \"format-exit=$LASTEXITCODE\")"
+      "PowerShell(dotnet pack \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.Middleware\\\\Enterprise.AI.Middleware.csproj\" -c Release 2>&1 | Select-String -Pattern \"\\(Successfully created|error\\)\" | Select-Object -First 3; dotnet format \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.slnx\" --verify-no-changes 2>&1 | Select-Object -Last 2; \"format-exit=$LASTEXITCODE\")",
+      "Bash(dotnet format *)"
     ]
   },
   "model": "fable",
