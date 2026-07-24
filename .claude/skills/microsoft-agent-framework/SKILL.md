@@ -55,7 +55,6 @@ When working with Microsoft Agent Framework in any language:
 ## References
 
 - [.NET reference](references/dotnet.md)
-- [Python reference](references/python.md)
 
 ## Completion criteria
 
