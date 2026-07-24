@@ -66,14 +66,39 @@ Before persisting responses into conversation history, remove the synthetic cont
 ChatResponse response = updates.ToChatResponse().StripProgressContent();
 ```
 
+## MCP tools
+
+First-class MCP support ships as a satellite package so the core stays dependency-lean:
+
+```shell
+dotnet add package Andes.Extensions.AI.Mcp
+```
+
+`McpClientTool` instances classify as `ToolKind.McpTool` and render as `"Calling {Server} MCP"`, and the server's progress notifications are bridged into `ToolProgress` updates with numeric `Progress`/`ProgressTotal` values:
+
+```csharp
+IList<McpClientTool> mcpTools = await mcpClient.ListToolsAsync();
+
+IChatClient client = innerClient
+    .AsBuilder()
+    .UseToolTracking(options => options.UseMcpToolClassification())
+    .UseFunctionInvocation()
+    .Build();
+
+var chatOptions = new ChatOptions { Tools = mcpTools.WithTracking(mcpClient) };
+```
+
+See [MCP support](docs/mcp.md) for details.
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
 - [Architecture](docs/architecture.md)
+- [MCP support](docs/mcp.md)
 
 ## Roadmap
 
-First-class classification for **MCP tools** (`Calling {Server} MCP`) and **Microsoft Agent Framework agents as tools** (`Calling {Agent} Agent`) — the `ToolClassifier` / `HeaderFormatter` hooks and `ToolKind` reserve the space today.
+First-class classification for **Microsoft Agent Framework agents as tools** (`Calling {Agent} Agent`) — the `ToolClassifier` / `HeaderFormatter` hooks and `ToolKind.Agent` reserve the space today.
 
 ## License
 

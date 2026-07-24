@@ -16,7 +16,8 @@ public enum ToolKind
     Function = 1,
 
     /// <summary>
-    /// A tool provided by a Model Context Protocol (MCP) server. Reserved for a future release.
+    /// A tool provided by a Model Context Protocol (MCP) server. First-class classification and
+    /// progress bridging ship in the <c>Andes.Extensions.AI.Mcp</c> package.
     /// </summary>
     McpTool = 2,
 

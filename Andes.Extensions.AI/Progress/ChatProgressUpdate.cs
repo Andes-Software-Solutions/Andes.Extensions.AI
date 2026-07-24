@@ -76,4 +76,21 @@ public sealed class ChatProgressUpdate
     /// <see cref="ToolTrackingOptions.IncludeToolArguments"/> is enabled.
     /// </summary>
     public IReadOnlyDictionary<string, string>? Arguments { get; init; }
+
+    /// <summary>
+    /// Gets the numeric progress reported for the current tool operation, when known.
+    /// Only populated on <see cref="ChatProgressKind.ToolProgress"/> events whose reporter
+    /// supplied a value.
+    /// </summary>
+    /// <remarks>
+    /// Sources that report progress as single-precision values (for example MCP servers) may
+    /// produce float-to-double widening artifacts for fractional values (<c>33.3f</c> becomes
+    /// <c>33.29999923706055</c>). Integer step counts are unaffected.
+    /// </remarks>
+    public double? Progress { get; init; }
+
+    /// <summary>
+    /// Gets the total amount of work required — the denominator for <see cref="Progress"/> — when known.
+    /// </summary>
+    public double? ProgressTotal { get; init; }
 }

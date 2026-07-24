@@ -3,11 +3,11 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Andes.Extensions.AI</RootNamespace>
-    <PackageId>Andes.Extensions.AI</PackageId>
+    <PackageId>Andes.Extensions.AI.Mcp</PackageId>
     <Version>0.2.0</Version>
     <Authors>Rodrigo Rojas</Authors>
-    <Description>Middleware extensions for Microsoft.Extensions.AI: per-request and per-tool token usage tracking, and streaming status/progress propagation for IChatClient pipelines.</Description>
-    <PackageTags>AI;IChatClient;Microsoft.Extensions.AI;middleware;tokens;usage;streaming;progress;tools</PackageTags>
+    <Description>Model Context Protocol (MCP) support for Andes.Extensions.AI tool tracking: classifies McpClientTool instances as MCP tools ("Calling {Server} MCP") and bridges MCP progress notifications into chat progress updates with numeric progress values.</Description>
+    <PackageTags>AI;IChatClient;Microsoft.Extensions.AI;MCP;ModelContextProtocol;middleware;progress;tools</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/RorroRojas3/Enterprise.AI</RepositoryUrl>
@@ -18,11 +18,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="ModelContextProtocol.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Andes.Extensions.AI\Andes.Extensions.AI.csproj" />
   </ItemGroup>
 
 </Project>

@@ -38,4 +38,27 @@ public sealed class ToolDescriptor
     /// Gets the origin of the tool, such as an MCP server name or agent identifier, if any.
     /// </summary>
     public string? Source { get; init; }
+
+    /// <summary>
+    /// Classifies a tool the way the built-in classifier does: <see cref="AIFunction"/> tools as
+    /// <see cref="ToolKind.Function"/> and everything else as <see cref="ToolKind.Unknown"/>.
+    /// </summary>
+    /// <remarks>
+    /// Custom <see cref="ToolTrackingOptions.ToolClassifier"/> implementations can use this as
+    /// their fallback for tools they do not recognize, keeping their behavior aligned with the
+    /// default pipeline.
+    /// </remarks>
+    /// <param name="tool">The tool to classify.</param>
+    /// <returns>The default descriptor for <paramref name="tool"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="tool"/> is <see langword="null"/>.</exception>
+    public static ToolDescriptor CreateDefault(AITool tool)
+    {
+        ArgumentNullException.ThrowIfNull(tool);
+
+        return new ToolDescriptor
+        {
+            Name = tool.Name,
+            Kind = tool is AIFunction ? ToolKind.Function : ToolKind.Unknown,
+        };
+    }
 }

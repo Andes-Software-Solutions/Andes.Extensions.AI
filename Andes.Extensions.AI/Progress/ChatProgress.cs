@@ -42,6 +42,25 @@ public static class ChatProgress
     }
 
     /// <summary>
+    /// Reports a sub-status message with numeric progress values that consumers can render as a
+    /// progress indicator (for example, "step 2 of 5" with <c>2</c> and <c>5</c>).
+    /// </summary>
+    /// <param name="status">The status text. Must not carry prompt content or tool results.</param>
+    /// <param name="progress">The amount of work completed so far, if known.</param>
+    /// <param name="progressTotal">The total amount of work required, if known.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="status"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="status"/> is empty.</exception>
+    public static void Report(string status, double? progress, double? progressTotal = null)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(status);
+
+        if (AmbientScope.Current is { } scope)
+        {
+            scope.Tracker.ReportToolProgress(scope, status, progress, progressTotal);
+        }
+    }
+
+    /// <summary>
     /// Attributes token usage (for example, from a nested SDK or agent call made inside the tool)
     /// to the currently executing tool's scope.
     /// </summary>
@@ -67,6 +86,12 @@ public static class ChatProgress
             scope.Tracker.ReportToolProgress(scope, status);
         }
 
+        public void Report(string status, double? progress, double? progressTotal)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(status);
+            scope.Tracker.ReportToolProgress(scope, status, progress, progressTotal);
+        }
+
         public void ReportUsage(UsageDetails usage)
         {
             ArgumentNullException.ThrowIfNull(usage);
@@ -81,6 +106,10 @@ public static class ChatProgress
         public bool IsActive => false;
 
         public void Report(string status)
+        {
+        }
+
+        public void Report(string status, double? progress, double? progressTotal)
         {
         }
 

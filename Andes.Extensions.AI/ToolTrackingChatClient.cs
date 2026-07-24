@@ -288,11 +288,7 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
                 ?? throw new InvalidOperationException($"{nameof(ToolTrackingOptions.ToolClassifier)} returned null.");
         }
 
-        return new ToolDescriptor
-        {
-            Name = tool.Name,
-            Kind = tool is AIFunction ? ToolKind.Function : ToolKind.Unknown,
-        };
+        return ToolDescriptor.CreateDefault(tool);
     }
 
     private ChatClientMetadata? GetMetadata()
