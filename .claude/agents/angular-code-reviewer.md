@@ -1,7 +1,7 @@
 ---
 name: angular-code-reviewer
 description: Expert Angular code review specialist. Use PROACTIVELY immediately after writing or modifying Angular code — components, templates, services, routing, forms, HTTP, or NgRx Signal Store state. Reviews signals correctness, change detection and zoneless readiness, template control flow, dependency injection, forms, SSR/hydration safety, security, accessibility, performance, and test quality against the project's instructions and skills. Reports findings only — it does not edit files.
-model: sonnet
+model: opus
 tools: Read, Glob, Grep, Bash, WebFetch, Skill, mcp__angular-cli
 skills:
   - angular-developer

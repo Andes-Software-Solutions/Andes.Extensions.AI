@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/Tests/">
+    <Project Path="tests/Andes.Extensions.AI.Integration.Test/Andes.Extensions.AI.Integration.Test.csproj" Id="1b2499a5-ca75-4f0f-b541-7781aa192d91" />
+    <Project Path="tests/Andes.Extensions.AI.Unit.Test/Andes.Extensions.AI.Unit.Test.csproj" Id="aa0b3955-c394-47c8-b259-a524e083f75c" />
+  </Folder>
+  <Project Path="Andes.Extensions.AI/Andes.Extensions.AI.csproj" Id="b978533c-fcba-4381-a808-2a06e7823292" />
+</Solution>

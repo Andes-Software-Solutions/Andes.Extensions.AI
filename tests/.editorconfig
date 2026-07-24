@@ -1,0 +1,3 @@
+# Test projects relax library-only rules.
+[*.cs]
+dotnet_diagnostic.CA2007.severity = none
