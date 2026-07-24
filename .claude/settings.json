@@ -61,7 +61,17 @@
       "Bash(dotnet test *)",
       "PowerShell($results = @\\(\\); for \\($i = 1; $i -le 4; $i++\\) { $out = dotnet test \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.slnx\" -c Release --no-build 2>&1 | Select-String -Pattern \"\\(Passed!|Failed! |Skipped!\\)\" ; $results += \"run ${i}: $\\($out -join ' // '\\)\" }; $results)",
       "PowerShell(dotnet pack \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.Middleware\\\\Enterprise.AI.Middleware.csproj\" -c Release 2>&1 | Select-String -Pattern \"\\(Successfully created|error\\)\" | Select-Object -First 3; dotnet format \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Enterprise.AI.slnx\" --verify-no-changes 2>&1 | Select-Object -Last 2; \"format-exit=$LASTEXITCODE\")",
-      "Bash(dotnet format *)"
+      "Bash(dotnet format *)",
+      "PowerShell(Remove-Item \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Andes.Extensions.AI\\\\Class1.cs\" -Confirm:$false)",
+      "PowerShell(dotnet build \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Andes.Extensions.slnx\" -v minimal)",
+      "PowerShell(dotnet test \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\tests\\\\Andes.Extensions.AI.Unit.Test\\\\Andes.Extensions.AI.Unit.Test.csproj\" -v minimal)",
+      "PowerShell(dotnet test \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\tests\\\\Andes.Extensions.AI.Integration.Test\\\\Andes.Extensions.AI.Integration.Test.csproj\" -v minimal)",
+      "PowerShell(dotnet pack \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Andes.Extensions.AI\\\\Andes.Extensions.AI.csproj\" -c Release -v minimal)",
+      "PowerShell($zip = [System.IO.Compression.ZipFile]::OpenRead\\(\"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Andes.Extensions.AI\\\\bin\\\\Release\\\\Andes.Extensions.AI.0.1.0.nupkg\"\\); $zip.Entries | Select-Object -ExpandProperty FullName; $nuspec = $zip.Entries | Where-Object { $_.FullName -eq 'Andes.Extensions.AI.nuspec' }; $reader = New-Object System.IO.StreamReader\\($nuspec.Open\\(\\)\\); $reader.ReadToEnd\\(\\); $reader.Dispose\\(\\); $zip.Dispose\\(\\))",
+      "PowerShell(dotnet format \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Andes.Extensions.slnx\" --verify-no-changes 2>&1 | Select-Object -Last 5; \"format exit: $LASTEXITCODE\")",
+      "PowerShell(git -C \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\" check-ignore -v tests/Andes.Extensions.AI.Integration.Test/appsettings.integration.json; \"check-ignore exit: $LASTEXITCODE\")",
+      "PowerShell(dotnet test \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Andes.Extensions.slnx\" -v minimal 2>&1)",
+      "PowerShell(dotnet format \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Andes.Extensions.slnx\" --verify-no-changes 2>&1 | Select-Object -Last 3; \"format exit: $LASTEXITCODE\"; dotnet pack \"c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI\\\\Andes.Extensions.AI\\\\Andes.Extensions.AI.csproj\" -c Release -v minimal 2>&1 | Select-Object -Last 2)"
     ]
   },
   "model": "fable",

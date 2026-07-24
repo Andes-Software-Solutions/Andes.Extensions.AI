@@ -1,35 +1,37 @@
 # CLAUDE.md
 
-Project memory for **Enterprise.AI** — a C#/.NET solution that ships **`Enterprise.AI.Middleware`**, a NuGet package of composable **Microsoft.Extensions.AI `IChatClient` middlewares**. It loads automatically every session and governs how Claude Code works in this repository.
+Project memory for **Andes.Extensions.AI** — a C#/.NET solution that ships **`Andes.Extensions.AI`**, a NuGet package of composable **Microsoft.Extensions.AI `IChatClient` middlewares**. It loads automatically every session and governs how Claude Code works in this repository.
 
 ## What this project is
 
-`Enterprise.AI.Middleware` (PackageId `Enterprise.AI.Middleware`, multi-target `net8.0;net10.0`) provides production middlewares for `IChatClient` pipelines. The first middleware is **tool tracking** (`ToolTrackingChatClient` + `UseToolTracking()`):
+`Andes.Extensions.AI` (PackageId `Andes.Extensions.AI`, target `net10.0`, C# 14) provides extension functionality for Microsoft.Extensions.AI and, in later phases, the Microsoft Agent Framework. The first middleware is **tool tracking** (`ToolTrackingChatClient` + `UseToolTracking()`):
 
-- Tracks every tool invocation made by the assistant — plain `AIFunction` tools, **Microsoft Agent Framework agents exposed as tools** (`agent.AsTrackedAIFunction()`), and **MCP tools** (`McpClientTool`, annotated via `WithTrackingMetadata`).
-- Emits hierarchical status updates ("Calling Tool(s)" / "Calling {Agent} Agent" / "Calling {Server} MCP" with subheaders) **in-band** as `ActivityStatusContent` items in the streaming response and **out-of-band** to `IChatActivityObserver` implementations.
-- Records granular token usage (input/output/total, model id, provider name from `ChatClientMetadata`) per request and per tool-call scope, including LLM calls nested inside agent tools (AsyncLocal ambient scope tree), rolled up into a `ChatActivityReport`.
+- Tracks every `AIFunction` invocation made by the assistant by wrapping tools in an internal `TrackingAIFunction : DelegatingAIFunction` (request-scoped; the caller's `ChatOptions` is cloned, never mutated).
+- Emits progress statuses ("Calling {Tool} Tool" headers with tool-reported subheaders like "Extracting…") **in-band** as `ChatProgressContent` items merged into the streaming response via a `Channel<ChatResponseUpdate>` pump, and **out-of-band** to `IChatProgressObserver` implementations. Tool authors report subheaders through the ambient `ChatProgress.Report(...)` API (AsyncLocal; safe no-op outside a tracked request).
+- Records token usage (input/output/total, model id, provider name from `ChatClientMetadata`) per request, per model turn (streaming), and per tool-call scope — including usage reported inside tools (`ChatProgress.ReportUsage`) and totals of nested tracked pipelines (AsyncLocal ambient scope tree) — rolled up into a `ChatUsageReport` (streaming: final `UsageReportContent` update; non-streaming: `ChatResponse.AdditionalProperties["andes.ai.usage_report"]`).
+- MCP tools and Agent-Framework-agents-as-tools are **future phases**: `ToolKind.McpTool`/`ToolKind.Agent` are reserved and arrive via the `ToolTrackingOptions.ToolClassifier`/`HeaderFormatter` hooks without breaking changes. Do not add MCP/Agents package references yet.
 
-Key invariant: **`UseToolTracking()` must be registered before `UseFunctionInvocation()`** — the tracker wraps the tools that the `FunctionInvokingChatClient` executes.
+Key invariant: **`UseToolTracking()` must be registered before `UseFunctionInvocation()`** — the tracker wraps the tools that the `FunctionInvokingChatClient` executes and observes the merged stream from outside the invocation loop.
+
+Privacy invariant: progress events and reports never carry prompt content, tool arguments, or tool results; the only opt-in is `ToolTrackingOptions.IncludeToolArguments` (default `false`, stringified arguments only).
 
 ## Solution layout
 
-- `Enterprise.AI.slnx` — solution (XML format).
-- `Enterprise.AI.Middleware\` — the package source. Public surface in `Tracking\`; implementation details in `Tracking\Internal\` (visible to the unit tests via `InternalsVisibleTo`).
-- `tests\Enterprise.AI.Middleware.Tests\` — unit tests; no network. A `ScriptedChatClient` fake drives the real `FunctionInvokingChatClient`, and an in-process MCP client/server pair (stream transport) supplies genuine `McpClientTool` instances.
-- `tests\Enterprise.AI.Middleware.IntegrationTests\` — Azure OpenAI tests, auto-skip unless `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `AZURE_OPENAI_DEPLOYMENT` are set.
-- `tests\Enterprise.AI.Middleware.TestMcpServer\` — stdio MCP server used by the integration tests (no Node.js dependency).
-- `docs\` — developer documentation (getting-started, architecture, status-events, usage-tracking, configuration).
-- Build infrastructure: `Directory.Build.props` (warnings as errors, C# 14, deterministic builds), `Directory.Packages.props` (**central package management — all versions live here**), `global.json` (SDK pin), `.editorconfig` (style rules; `CA2007` is an error in the library, off in tests).
+- `Andes.Extensions.slnx` — solution (XML format).
+- `Andes.Extensions.AI\` — the package source. Public surface at the root plus `Progress\`, `Usage\`, `Tools\`; implementation details in `Internal\` (plus the internal `TrackingAIFunction` in `Tools\`).
+- `tests\Andes.Extensions.AI.Unit.Test\` — unit tests; no network. The `Infrastructure\ScriptedChatClient` fake replays scripted `ChatResponseUpdate` turns and drives the **real** `FunctionInvokingChatClient`.
+- `tests\Andes.Extensions.AI.Integration.Test\` — Azure OpenAI tests. Configuration comes from a **gitignored `appsettings.integration.json`** (copy `appsettings.integration.sample.json`; section `AzureOpenAI` with `Endpoint`/`ApiKey`/`Deployment`). **Never environment variables.** Tests `[SkippableFact]`-skip cleanly when the file is missing or incomplete.
+- `docs\` — developer documentation (getting-started, architecture).
+- Build infrastructure: `Directory.Build.props` (warnings as errors, C# 14, deterministic builds, XML docs required), `Directory.Packages.props` (**central package management — all versions live here**), `global.json` (SDK pin), `.editorconfig` (style rules; `CA2007` is an error in the library, off in tests via `tests\.editorconfig`).
 
 ## Project-specific conventions
 
-- **Central package management**: never put a `Version` on a `PackageReference`; add/update pins in `Directory.Packages.props`.
-- The library must compile on **both** `net8.0` and `net10.0` — avoid net10-only APIs (C# 14 language features are fine).
+- **Central package management**: never put a `Version` on a `PackageReference`; add/update pins in `Directory.Packages.props`. Use latest **stable** package versions only (no pre-release).
+- The library targets **net10.0 only**; C# 14 features are welcome.
 - `ConfigureAwait(false)` on every `await` in the library (enforced by CA2007-as-error); not required in tests.
-- Events and logs must never carry prompt content, tool arguments, or tool results. Tool-argument logging exists only behind `ToolTrackingOptions.ArgumentLogging` (default `None`).
+- Events and logs must never carry prompt content, tool arguments, or tool results. Tool-argument capture exists only behind `ToolTrackingOptions.IncludeToolArguments` (default `false`).
 - Public API changes require XML docs (missing docs fail the build) and a matching update under `docs\`.
-- Packaging metadata lives in `Enterprise.AI.Middleware.csproj`; `dotnet pack -c Release` must produce the nupkg + snupkg with the README embedded.
+- Packaging metadata lives in `Andes.Extensions.AI.csproj`; `dotnet pack -c Release` must produce the nupkg + snupkg with the root README embedded.
 
 ## C# coding standards (always)
 
@@ -61,15 +63,15 @@ Key invariant: **`UseToolTracking()` must be registered before `UseFunctionInvoc
 
 **Validation & error handling**
 
-- `try`/`catch` around `await`s; never silently swallow exceptions.
+- `try`/`catch` around `await`s; never silently swallow exceptions (documented exception: observer callbacks are isolated so a faulty observer cannot corrupt the response stream).
 - Validate arguments at public entry points (`ArgumentNullException.ThrowIfNull`).
 - Return errors as Problem Details (RFC 9457) in any future HTTP surface.
 
 **Logging & security**
 
-- Inject `ILogger<T>`/`ILoggerFactory`; use structured logging (source-generated `[LoggerMessage]` in this repo).
+- Inject `ILogger<T>`/`ILoggerFactory`; use structured logging (source-generated `[LoggerMessage]` if logging is added).
 - **Never log PII or secrets.**
-- Prefer `DefaultAzureCredential` + Azure Key Vault / Managed Identity over secrets in code or config (integration tests use an API key from environment variables by explicit choice).
+- Prefer `DefaultAzureCredential` + Azure Key Vault / Managed Identity over secrets in code or config (integration tests use an API key from the gitignored `appsettings.integration.json` by explicit choice).
 
 **Documentation** (see the `csharp-docs` skill)
 
@@ -79,8 +81,8 @@ Key invariant: **`UseToolTracking()` must be registered before `UseFunctionInvoc
 
 - xUnit; tests live under `tests\`; name tests `MethodName_Scenario_ExpectedBehavior`.
 - Follow Arrange-Act-Assert structure but do **not** write `// Arrange` / `// Act` / `// Assert` comments.
-- Data-driven tests with `[Theory]` + `[InlineData]` / `[MemberData]`; isolate with NSubstitute or hand-rolled fakes (`ScriptedChatClient`); run with `dotnet test`.
-- Integration tests use `[SkippableFact]` and must skip cleanly when the environment is not configured.
+- Data-driven tests with `[Theory]` + `[InlineData]` / `[MemberData]`; isolate with hand-rolled fakes (`ScriptedChatClient`); run with `dotnet test`.
+- Integration tests use `[SkippableFact]` and must skip cleanly when `appsettings.integration.json` is not configured.
 
 **Review posture**
 
@@ -122,10 +124,10 @@ The full guidelines live in `.claude/rules/` and **load automatically when you e
 ## Common commands
 
 ```bash
-dotnet build                                  # compile (net8.0 + net10.0, warnings are errors)
+dotnet build                                  # compile (net10.0, warnings are errors)
 dotnet test                                   # unit tests + integration tests (integration auto-skips)
-dotnet pack Enterprise.AI.Middleware -c Release   # produce nupkg + snupkg
+dotnet pack Andes.Extensions.AI -c Release    # produce nupkg + snupkg
 dotnet format                                 # apply .editorconfig formatting
 ```
 
-Integration tests run for real only when `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `AZURE_OPENAI_DEPLOYMENT` are set.
+Integration tests run for real only when `tests\Andes.Extensions.AI.Integration.Test\appsettings.integration.json` exists with the `AzureOpenAI` section filled in (copy the `.sample` file). Do not use environment variables for this.

@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local integration-test secrets (see appsettings.integration.sample.json)
+appsettings.integration.json
