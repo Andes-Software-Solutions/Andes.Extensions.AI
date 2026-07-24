@@ -50,8 +50,9 @@ public sealed class ToolTrackingOptions
     /// Gets or sets a callback that classifies an <see cref="AITool"/> into a <see cref="ToolDescriptor"/>.
     /// When <see langword="null"/>, plain <see cref="AIFunction"/> tools are classified as
     /// <see cref="ToolKind.Function"/> and everything else as <see cref="ToolKind.Unknown"/>.
-    /// This is the extension point through which future tool categories (MCP tools, agents as tools)
-    /// receive first-class treatment.
+    /// This is the extension point through which additional tool categories receive first-class
+    /// treatment: the <c>Andes.Extensions.AI.Mcp</c> and <c>Andes.Extensions.AI.Agent</c> satellite
+    /// packages install composing classifiers for MCP tools and agents as tools.
     /// </summary>
     public Func<AITool, ToolDescriptor>? ToolClassifier { get; set; }
 

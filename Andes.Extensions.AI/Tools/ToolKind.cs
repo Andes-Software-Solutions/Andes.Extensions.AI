@@ -22,7 +22,8 @@ public enum ToolKind
     McpTool = 2,
 
     /// <summary>
-    /// A tool backed by an agent exposed as a function. Reserved for a future release.
+    /// A tool backed by an agent exposed as a function. First-class classification and usage
+    /// capture ship in the <c>Andes.Extensions.AI.Agent</c> package.
     /// </summary>
     Agent = 3,
 }

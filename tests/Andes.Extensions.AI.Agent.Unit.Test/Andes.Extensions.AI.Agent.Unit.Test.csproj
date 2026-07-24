@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.Agents.AI" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Andes.Extensions.AI.Agent\Andes.Extensions.AI.Agent.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Andes.Extensions.AI.Unit.Test\Infrastructure\CollectingProgressObserver.cs" Link="Infrastructure\CollectingProgressObserver.cs" />
+    <Compile Include="..\Andes.Extensions.AI.Unit.Test\Infrastructure\ScriptedChatClient.cs" Link="Infrastructure\ScriptedChatClient.cs" />
+    <Compile Include="..\Andes.Extensions.AI.Unit.Test\Infrastructure\ScriptedTurn.cs" Link="Infrastructure\ScriptedTurn.cs" />
+    <Compile Include="..\Andes.Extensions.AI.Unit.Test\Infrastructure\TestPipeline.cs" Link="Infrastructure\TestPipeline.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

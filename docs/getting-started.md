@@ -165,7 +165,7 @@ IChatProgressReporter reporter = ChatProgress.Current;
 reporter.Report("Processing...");
 ```
 
-Tools that run their own `UseToolTracking()` pipeline internally (for example, an agent exposed as a function) do not need `ReportUsage` at all: the nested pipeline's `TotalUsage` rolls up into the calling tool's scope automatically.
+Tools that run their own `UseToolTracking()` pipeline internally (for example, an agent exposed as a function) do not need `ReportUsage` at all: the nested pipeline's `TotalUsage` rolls up into the calling tool's scope automatically. If such a self-tracked agent is wrapped with the [`Andes.Extensions.AI.Agent` package](agents.md)'s `WithTracking`, pass `trackUsage: false` so its own usage capture does not attribute the same tokens twice.
 
 ## MCP tools
 
@@ -242,8 +242,8 @@ All options live on `ToolTrackingOptions`, configured via the `UseToolTracking(o
 | `AttachReportToResponse` | `bool` | `true` | For non-streaming calls, attach the `ChatUsageReport` to `ChatResponse.AdditionalProperties` under `ToolTrackingChatClient.UsageReportPropertyName`. |
 | `IncludeToolArguments` | `bool` | `false` | Include stringified tool arguments in `ChatProgressUpdate.Arguments` on `ToolInvoking` events. Off by default: progress events never carry prompt content, tool arguments, or tool results unless explicitly opted in. |
 | `Observers` | `IList<IChatProgressObserver>` | empty | Out-of-band observers notified of every progress event and request completion. DI-registered observers are appended automatically by `UseToolTracking`. |
-| `ToolClassifier` | `Func<AITool, ToolDescriptor>?` | `null` | Classifies a tool into a `ToolDescriptor`. Default: `AIFunction` tools become `ToolKind.Function`, everything else `ToolKind.Unknown` — exposed as `ToolDescriptor.CreateDefault` for custom classifiers to fall back on. The [`Andes.Extensions.AI.Mcp` package](mcp.md) installs an MCP-aware classifier via `UseMcpToolClassification()`; agent classification is a future extension. |
-| `HeaderFormatter` | `Func<ToolDescriptor, string>?` | `null` | Formats tool headers. Default: "Calling {DisplayName} Tool" for functions, "Calling {Source} MCP" for [MCP tools](mcp.md), "Calling {DisplayName} Agent" for agents (future). |
+| `ToolClassifier` | `Func<AITool, ToolDescriptor>?` | `null` | Classifies a tool into a `ToolDescriptor`. Default: `AIFunction` tools become `ToolKind.Function`, everything else `ToolKind.Unknown` — exposed as `ToolDescriptor.CreateDefault` for custom classifiers to fall back on. The [`Andes.Extensions.AI.Mcp` package](mcp.md) installs an MCP-aware classifier via `UseMcpToolClassification()`; the [`Andes.Extensions.AI.Agent` package](agents.md) installs an agent-aware classifier via `UseAgentToolClassification()`. |
+| `HeaderFormatter` | `Func<ToolDescriptor, string>?` | `null` | Formats tool headers. Default: "Calling {DisplayName} Tool" for functions, "Calling {Source} MCP" for [MCP tools](mcp.md), "Calling {DisplayName} Agent" for [agent tools](agents.md). |
 | `TimeProvider` | `TimeProvider` | `TimeProvider.System` | Clock for timestamps and durations; replace with a fake in tests for deterministic timing. |
 
 ## End-to-end with Azure OpenAI

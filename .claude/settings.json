@@ -101,7 +101,13 @@
       "Bash(cd ~/.nuget/packages/modelcontextprotocol.core/1.4.1/lib/net10.0 && grep -B1 -A8 '\"P:ModelContextProtocol.ProgressNotificationValue.\\\\\\(Progress\\\\|Total\\\\|Message\\\\\\)\"' ModelContextProtocol.Core.xml | head -50; grep -B1 -A6 '\"P:ModelContextProtocol.Client.McpClient.ServerInfo\"' ModelContextProtocol.Core.xml | head -20)",
       "Bash(git -C C:/Users/Rorro/source/repos/Enterprise.AI status --short docs/)",
       "Bash(git -C C:/Users/Rorro/source/repos/Enterprise.AI diff README.md)",
-      "Bash(git -C C:/Users/Rorro/source/repos/Enterprise.AI status --short --untracked-files=all docs/)"
+      "Bash(git -C C:/Users/Rorro/source/repos/Enterprise.AI status --short --untracked-files=all docs/)",
+      "PowerShell(1..3 | ForEach-Object { [guid]::NewGuid\\(\\).ToString\\(\\) })",
+      "PowerShell(dotnet build Andes.Extensions.AI.Agent\\\\Andes.Extensions.AI.Agent.csproj 2>&1)",
+      "PowerShell(dotnet test tests\\\\Andes.Extensions.AI.Agent.Unit.Test\\\\Andes.Extensions.AI.Agent.Unit.Test.csproj 2>&1)",
+      "PowerShell(dotnet build 2>&1)",
+      "PowerShell(dotnet pack Andes.Extensions.AI.Agent -c Release 2>&1)",
+      "PowerShell(dotnet format --verify-no-changes 2>&1)"
     ]
   },
   "model": "fable",
