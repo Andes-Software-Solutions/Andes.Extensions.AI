@@ -113,6 +113,7 @@ Each `ChatProgressUpdate` carries the fields a UI needs to render a hierarchy wi
 - **`ScopeId` / `ParentScopeId`** — `ToolProgress` events share the `ScopeId` of their owning tool call, so group sub-statuses under the header with the matching `ScopeId`; `ParentScopeId` links nested tool calls to their parent.
 - **`Depth`** — 0 for request-level events, 1 for tool headers, 2 for sub-statuses under a header, deeper for nested tools; ideal for indentation.
 - **`ToolName` / `ToolKind` / `ToolSource` / `CallId` / `Duration`** — for richer rendering and correlation with the model's function calls.
+- **`Progress` / `ProgressTotal`** — optional numeric progress (`double?`) on `ToolProgress` events whose reporter supplied values, via the `ChatProgress.Report(status, progress, progressTotal)` overload or a bridged MCP progress notification (see [MCP tools](#mcp-tools)).
 
 A typical rendering of the events for one tool call:
 
@@ -146,6 +147,17 @@ AIFunction weather = AIFunctionFactory.Create(
 
 Both calls are **safe no-ops outside a tracked request**, so tools stay usable in untracked pipelines and plain unit tests. `ChatProgress.IsActive` tells you whether tracking is live.
 
+Tools doing measurable work can attach numeric values to a sub-status with the `Report(status, progress, progressTotal)` overload; consumers read them back from `ChatProgressUpdate.Progress`/`ProgressTotal` on the resulting `ToolProgress` events:
+
+```csharp
+for (int i = 1; i <= pages.Count; i++)
+{
+    ChatProgress.Report($"Processing page {i} of {pages.Count}", i, pages.Count);
+}
+```
+
+Like the other members, the overload is a safe no-op outside a tracked request, and `IChatProgressReporter` supplies it as a default interface member that forwards to `Report(status)`, so existing reporter implementations keep compiling unchanged.
+
 Services that prefer an injectable dependency over statics can take an `IChatProgressReporter` and obtain it from `ChatProgress.Current`, which returns a bound reporter inside a tracked request and a no-op reporter otherwise:
 
 ```csharp
@@ -154,6 +166,35 @@ reporter.Report("Processing...");
 ```
 
 Tools that run their own `UseToolTracking()` pipeline internally (for example, an agent exposed as a function) do not need `ReportUsage` at all: the nested pipeline's `TotalUsage` rolls up into the calling tool's scope automatically.
+
+## MCP tools
+
+Model Context Protocol tools get first-class tracking through the satellite package:
+
+```shell
+dotnet add package Andes.Extensions.AI.Mcp
+```
+
+`UseMcpToolClassification()` renders MCP tools with the "Calling {Server} MCP" header and reports them as `ToolKind.McpTool`; `WithTracking(...)` carries the server's display name and bridges the server's progress notifications into `ToolProgress` updates with numeric `Progress`/`ProgressTotal` values:
+
+```csharp
+using Andes.Extensions.AI;
+using Microsoft.Extensions.AI;
+using ModelContextProtocol.Client;
+
+McpClient mcpClient = await McpClient.CreateAsync(transport);
+IList<McpClientTool> mcpTools = await mcpClient.ListToolsAsync();
+
+IChatClient client = innerClient
+    .AsBuilder()
+    .UseToolTracking(options => options.UseMcpToolClassification())
+    .UseFunctionInvocation() // tracking before function invocation (core invariant)
+    .Build();
+
+var chatOptions = new ChatOptions { Tools = mcpTools.WithTracking(mcpClient) };
+```
+
+See [MCP tool tracking](mcp.md) for the server-name precedence, how the progress bridge works, its ordering and threading caveats, and the `enableProgress` opt-out.
 
 ## Read the usage report
 
@@ -201,8 +242,8 @@ All options live on `ToolTrackingOptions`, configured via the `UseToolTracking(o
 | `AttachReportToResponse` | `bool` | `true` | For non-streaming calls, attach the `ChatUsageReport` to `ChatResponse.AdditionalProperties` under `ToolTrackingChatClient.UsageReportPropertyName`. |
 | `IncludeToolArguments` | `bool` | `false` | Include stringified tool arguments in `ChatProgressUpdate.Arguments` on `ToolInvoking` events. Off by default: progress events never carry prompt content, tool arguments, or tool results unless explicitly opted in. |
 | `Observers` | `IList<IChatProgressObserver>` | empty | Out-of-band observers notified of every progress event and request completion. DI-registered observers are appended automatically by `UseToolTracking`. |
-| `ToolClassifier` | `Func<AITool, ToolDescriptor>?` | `null` | Classifies a tool into a `ToolDescriptor`. Default: `AIFunction` tools become `ToolKind.Function`, everything else `ToolKind.Unknown`. Extension point for future MCP/agent classification. |
-| `HeaderFormatter` | `Func<ToolDescriptor, string>?` | `null` | Formats tool headers. Default: "Calling {DisplayName} Tool" for functions, "Calling {Source} MCP" for MCP tools, "Calling {DisplayName} Agent" for agents. |
+| `ToolClassifier` | `Func<AITool, ToolDescriptor>?` | `null` | Classifies a tool into a `ToolDescriptor`. Default: `AIFunction` tools become `ToolKind.Function`, everything else `ToolKind.Unknown` — exposed as `ToolDescriptor.CreateDefault` for custom classifiers to fall back on. The [`Andes.Extensions.AI.Mcp` package](mcp.md) installs an MCP-aware classifier via `UseMcpToolClassification()`; agent classification is a future extension. |
+| `HeaderFormatter` | `Func<ToolDescriptor, string>?` | `null` | Formats tool headers. Default: "Calling {DisplayName} Tool" for functions, "Calling {Source} MCP" for [MCP tools](mcp.md), "Calling {DisplayName} Agent" for agents (future). |
 | `TimeProvider` | `TimeProvider` | `TimeProvider.System` | Clock for timestamps and durations; replace with a fake in tests for deterministic timing. |
 
 ## End-to-end with Azure OpenAI
@@ -303,3 +344,5 @@ dotnet test
 ```
 
 Unit tests (`tests\Andes.Extensions.AI.Unit.Test`) need no network: a scripted fake drives the real `FunctionInvokingChatClient`. Integration tests (`tests\Andes.Extensions.AI.Integration.Test`) call Azure OpenAI for real, but **skip cleanly** when `appsettings.integration.json` is missing or incomplete — so `dotnet test` always passes out of the box. To run them for real, copy `appsettings.integration.sample.json` to `appsettings.integration.json` in the integration test project and fill in the `AzureOpenAI` section. The file is gitignored; do not commit it.
+
+The [MCP package](mcp.md) adds three more projects: `tests\Andes.Extensions.AI.Mcp.Unit.Test` (also no network — an in-memory pipe fixture hosts a real MCP client/server pair in-process), `tests\Andes.Extensions.AI.TestMcpServer` (a runnable stdio server, "Andes Test MCP", with `echo`/`add`/`count_down` tools), and `tests\Andes.Extensions.AI.Mcp.Integration.Test`, which drives Azure OpenAI against that stdio server and **links the same gitignored `appsettings.integration.json`** — configure the file once and both integration projects use it.

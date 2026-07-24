@@ -76,6 +76,29 @@ public class ToolClassificationTests
     }
 
     [Fact]
+    public void CreateDefault_AIFunction_ReturnsFunctionKind()
+    {
+        AIFunction tool = AIFunctionFactory.Create(() => "sunny", "GetWeather");
+
+        ToolDescriptor descriptor = ToolDescriptor.CreateDefault(tool);
+
+        Assert.Equal("GetWeather", descriptor.Name);
+        Assert.Equal(ToolKind.Function, descriptor.Kind);
+        Assert.Null(descriptor.Source);
+    }
+
+    [Fact]
+    public void CreateDefault_NonFunctionTool_ReturnsUnknownKind()
+    {
+        var tool = new HostedWebSearchTool();
+
+        var descriptor = ToolDescriptor.CreateDefault(tool);
+
+        Assert.Equal(tool.Name, descriptor.Name);
+        Assert.Equal(ToolKind.Unknown, descriptor.Kind);
+    }
+
+    [Fact]
     public async Task CustomHeaderFormatter_Provided_OverridesDefaultHeader()
     {
         var scripted = new ScriptedChatClient(

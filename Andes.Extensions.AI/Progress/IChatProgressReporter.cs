@@ -25,6 +25,19 @@ public interface IChatProgressReporter
     void Report(string status);
 
     /// <summary>
+    /// Reports a sub-status message with optional numeric progress values that consumers can
+    /// render as a progress indicator.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation discards the numeric values and forwards to
+    /// <see cref="Report(string)"/>, so existing implementations keep working unchanged.
+    /// </remarks>
+    /// <param name="status">The status text. Must not carry prompt content or tool results.</param>
+    /// <param name="progress">The amount of work completed so far, if known.</param>
+    /// <param name="progressTotal">The total amount of work required, if known.</param>
+    void Report(string status, double? progress, double? progressTotal = null) => Report(status);
+
+    /// <summary>
     /// Attributes token usage (for example, from a nested SDK or agent call made inside the tool)
     /// to the current tool-call scope.
     /// </summary>

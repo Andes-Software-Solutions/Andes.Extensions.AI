@@ -116,7 +116,7 @@ internal sealed class RequestTracker
         });
     }
 
-    public void ReportToolProgress(ToolScope scope, string status)
+    public void ReportToolProgress(ToolScope scope, string status, double? progress = null, double? progressTotal = null)
     {
         ToolDescriptor? descriptor = scope.Descriptor;
         Emit(new ChatProgressUpdate
@@ -131,6 +131,8 @@ internal sealed class RequestTracker
             ParentScopeId = scope.Parent?.ScopeId,
             Depth = scope.Depth + 1,
             Timestamp = Now(),
+            Progress = progress,
+            ProgressTotal = progressTotal,
         });
     }
 

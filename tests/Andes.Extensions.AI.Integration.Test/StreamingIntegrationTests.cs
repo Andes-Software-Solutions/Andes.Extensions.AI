@@ -2,14 +2,9 @@ using Microsoft.Extensions.AI;
 
 namespace Andes.Extensions.AI.Integration.Test;
 
-public class StreamingIntegrationTests : IClassFixture<AzureOpenAIFixture>
+public class StreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFixture<AzureOpenAIFixture>
 {
-    private readonly AzureOpenAIFixture _fixture;
-
-    public StreamingIntegrationTests(AzureOpenAIFixture fixture)
-    {
-        _fixture = fixture;
-    }
+    private readonly AzureOpenAIFixture _fixture = fixture;
 
     [SkippableFact]
     public async Task GetStreamingResponseAsync_WithTool_TracksUsageAndProgress()

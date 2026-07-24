@@ -34,7 +34,7 @@ If the order is reversed, the function-invoking client executes the *unwrapped* 
 
 Two smaller consequences of sitting outside the loop:
 
-- Non-`AIFunction` tools (declarations the pipeline cannot invoke, hosted tools) pass through unwrapped; see [Known limitations](#known-limitations-v01).
+- Non-`AIFunction` tools (declarations the pipeline cannot invoke, hosted tools) pass through unwrapped; see [Known limitations](#known-limitations-v02).
 - The tracker resolves `ChatClientMetadata` from the inner client to stamp `ProviderName` on the report and to fall back to the client's default model id when the provider does not report one.
 
 ## Streaming design: channel merge
@@ -61,6 +61,7 @@ The hard problem in streaming is that **tools execute inside the inner client's 
 
 - A **background pump task** enumerates the inner stream and `TryWrite`s every real update into the channel. While enumerating it records each `UsageContent` as assistant-turn usage, emits best-effort headers for `FunctionCallContent` naming tools it did not wrap, and advances the turn counter when it sees `FunctionResultContent` (a completed tool round-trip), announcing the next turn with a "Thinking..." event.
 - **Tool wrappers and the ambient reporter** write synthetic updates into the same channel from whatever thread the function-invocation loop runs them on. Synthetic updates carry a single `ChatProgressContent` item and **no `TextContent`**, so text-accumulation helpers (`update.Text`, `ToChatResponse()`) are unaffected.
+- **Bridged MCP progress notifications** (via the [`Andes.Extensions.AI.Mcp` satellite](mcp.md)) write from yet another thread — the MCP client's receive loop — so those `ToolProgress` events can arrive out of order relative to request-path events. The channel guarantees arrival order, not source order; `IChatProgressObserver` implementations must be thread-safe (already their documented contract); and a late notification racing request completion is dropped best-effort — the in-band write to the completed channel is a no-op, though an observer may see one late event.
 - The **outer iterator** simply drains the channel with `ReadAllAsync` and yields each update in arrival order. After the channel completes, it builds the report, notifies observers, and appends the final `RequestCompleted` progress update and a `UsageReportContent` update (each independently switchable via options).
 
 **Cancellation and failure.** The pump runs under a CTS linked to the consumer's token. The `finally` around the drain loop cancels that CTS — a no-op on normal completion, but it stops the inner stream promptly if the consumer abandons the iterator early — and then awaits the pump task so it is always observed. If the inner stream throws, the pump completes the channel with that exception, so the failure surfaces to the consumer through the drain loop exactly as it would have without the middleware.
@@ -78,7 +79,7 @@ Progress and usage attribution both hang off a per-request **scope tree**, flowe
 - `ChatProgress.Report(...)` inside a tool resolves the ambient scope and attaches the sub-status to *that* tool's scope, one level deeper than its header — no plumbing through tool signatures.
 - A **nested tracked pipeline** — a second `UseToolTracking()` pipeline run inside a tool, as an agent exposed as a function would — captures the ambient scope as its parent on entry, and on completion rolls its report's `TotalUsage` up into that tool's scope. This is the mechanism the agents-as-tools roadmap item will ride on, and it works today (covered by `NestedUsageAttributionTests`).
 
-Scopes carry the `ToolDescriptor`, the model's `CallId` (correlated via `FunctionInvokingChatClient.CurrentContext`), duration, success flag, attributed usage, and children. Every `ChatProgressUpdate` exposes `ScopeId`/`ParentScopeId`/`Depth`, so consumers can reconstruct the tree without holding any state beyond the events themselves.
+Scopes carry the `ToolDescriptor`, the model's `CallId` (correlated via `FunctionInvokingChatClient.CurrentContext`), duration, success flag, attributed usage, and children. Every `ChatProgressUpdate` exposes `ScopeId`/`ParentScopeId`/`Depth`, so consumers can reconstruct the tree without holding any state beyond the events themselves. `ToolProgress` events additionally carry optional numeric `Progress`/`ProgressTotal` values (v0.2) when the reporter supplied them — a tool calling the `ChatProgress.Report(status, progress, progressTotal)` overload, or a bridged MCP progress notification.
 
 ## Usage attribution
 
@@ -113,7 +114,7 @@ Delivery differs by call style. Streaming: the report arrives as the final `Usag
 
 Progress events and reports **never carry prompt content, tool arguments, or tool results**. The only opt-in is `ToolTrackingOptions.IncludeToolArguments` (default `false`), which populates `ChatProgressUpdate.Arguments` on `ToolInvoking` events with *stringified* argument values only — nothing else changes, and results remain excluded even then. Sub-status text passed to `ChatProgress.Report` is documented as display text and must not carry prompt content or tool results.
 
-## Known limitations (v0.1)
+## Known limitations (v0.2)
 
 - **Synthetic content does not serialize.** `ChatProgressContent` and `UsageReportContent` are not part of the `AIJsonUtilities` polymorphic serialization contract for `AIContent`. Call `StripProgressContent()` on responses (or individual messages) before persisting them into conversation history or serializing them.
 - **Non-`AIFunction` tools get best-effort headers only.** Tool declarations the pipeline cannot invoke are recognized purely by observing `FunctionCallContent` on the stream: they receive a `ToolInvoking` event (kind `ToolKind.Unknown`, parented to the root) but no completion event, duration, or usage attribution.
@@ -122,7 +123,9 @@ Progress events and reports **never carry prompt content, tool arguments, or too
 
 ## Roadmap
 
-MCP tools ("Calling {Server} MCP") and Microsoft Agent Framework agents as tools ("Calling {Agent} Agent") arrive in a later release **purely as classification**: a `ToolClassifier` that recognizes those tool types and returns descriptors with `ToolKind.McpTool` / `ToolKind.Agent` and a `Source`, plus the default `HeaderFormatter` strings that already exist for those kinds. The tracking mechanics they need — scope nesting, ambient reporting, nested-pipeline usage rollup — are already in place, as the nested-pipeline tests demonstrate.
+MCP tools ("Calling {Server} MCP") shipped in v0.2 as the satellite package **`Andes.Extensions.AI.Mcp`** — and as more than classification: `UseMcpToolClassification()` recognizes `McpClientTool` instances (raw, wrapped, or inside user delegating chains) as `ToolKind.McpTool` with the server name as `Source`, and `WithTracking(...)` additionally bridges the server's `notifications/progress` into `ToolProgress` updates with numeric `Progress`/`ProgressTotal` values. See [MCP tool tracking](mcp.md) for the classification precedence, the progress bridge's design, and its ordering caveats.
+
+Microsoft Agent Framework agents as tools ("Calling {Agent} Agent") remain the roadmap item and arrive **purely as classification**: a `ToolClassifier` that recognizes agent tools and returns descriptors with `ToolKind.Agent` and a `Source`, plus the default `HeaderFormatter` string that already exists for that kind. The tracking mechanics they need — scope nesting, ambient reporting, nested-pipeline usage rollup — are already in place, as the nested-pipeline tests demonstrate.
 
 ## References
 

@@ -2,14 +2,9 @@ using Microsoft.Extensions.AI;
 
 namespace Andes.Extensions.AI.Integration.Test;
 
-public class NonStreamingIntegrationTests : IClassFixture<AzureOpenAIFixture>
+public class NonStreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFixture<AzureOpenAIFixture>
 {
-    private readonly AzureOpenAIFixture _fixture;
-
-    public NonStreamingIntegrationTests(AzureOpenAIFixture fixture)
-    {
-        _fixture = fixture;
-    }
+    private readonly AzureOpenAIFixture _fixture = fixture;
 
     [SkippableFact]
     public async Task GetResponseAsync_WithTool_AttachesReportAndNotifiesObservers()
