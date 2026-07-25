@@ -1,0 +1,130 @@
+# Publishes Andes.Extensions.AI, Andes.Extensions.AI.Mcp, and Andes.Extensions.AI.Agent
+# to nuget.org via Trusted Publishing (OIDC) — no stored API key.
+#
+# nuget.org Trusted Publishing policy match (configured on nuget.org):
+#   owner:          Andes-Software-Solutions
+#   workflow file:  nuget.yml    (renaming this file breaks the policy)
+#   environment:    production   (must stay on the publish job)
+
+name: NuGet Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# Deny-all by default; each job grants only what it needs.
+permissions: {}
+
+# Serialize publishes (packages version in lockstep); never cancel a publish in flight.
+concurrency:
+  group: nuget-publish
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    name: Build, test, and pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build Andes.Extensions.slnx --configuration Release
+
+      - name: Test
+        run: dotnet test Andes.Extensions.slnx --configuration Release --no-build
+
+      # Pack ONLY the three shipping projects into a dedicated output directory.
+      # (Test projects are packable too, so never pack the solution or glob bin/.)
+      - name: Pack
+        run: |
+          dotnet pack Andes.Extensions.AI/Andes.Extensions.AI.csproj --configuration Release --no-build --output packages
+          dotnet pack Andes.Extensions.AI.Mcp/Andes.Extensions.AI.Mcp.csproj --configuration Release --no-build --output packages
+          dotnet pack Andes.Extensions.AI.Agent/Andes.Extensions.AI.Agent.csproj --configuration Release --no-build --output packages
+
+      # For release runs, also require the packed version to match the release tag —
+      # otherwise --skip-duplicate would turn an unbumped <Version> into a green no-op.
+      - name: Verify package set
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          nupkg_count=$(ls packages/*.nupkg | wc -l)
+          snupkg_count=$(ls packages/*.snupkg | wc -l)
+          if [ "$nupkg_count" -ne 3 ] || [ "$snupkg_count" -ne 3 ]; then
+            echo "Expected 3 .nupkg + 3 .snupkg, found $nupkg_count .nupkg / $snupkg_count .snupkg" >&2
+            exit 1
+          fi
+          if [ -n "$RELEASE_TAG" ]; then
+            expected="${RELEASE_TAG#v}"
+            for pkg in Andes.Extensions.AI Andes.Extensions.AI.Mcp Andes.Extensions.AI.Agent; do
+              if [ ! -f "packages/$pkg.$expected.nupkg" ]; then
+                echo "Release tag $RELEASE_TAG expects $pkg.$expected.nupkg — bump <Version> in the three csprojs" >&2
+                exit 1
+              fi
+            done
+          fi
+
+      - name: Upload packages artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nuget-packages
+          path: packages/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish to nuget.org
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://www.nuget.org/profiles/Andes-Software-Solutions
+    permissions:
+      id-token: write # exchange the GitHub OIDC token for a short-lived NuGet API key
+    steps:
+      # No checkout: this job runs no repository code. Any SDK can push.
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Download packages artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: nuget-packages
+          path: packages
+
+      # Request the short-lived key immediately before pushing (valid ~1 hour,
+      # one OIDC token exchanges for exactly one key).
+      - name: NuGet login (OIDC)
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: Andes-Software-Solutions
+
+      # Quoted glob: NuGet expands it and pushes all three packages; matching
+      # .snupkg symbol packages are pushed automatically alongside each .nupkg.
+      - name: Push packages
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push "packages/*.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate

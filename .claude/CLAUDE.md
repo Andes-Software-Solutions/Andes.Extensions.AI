@@ -129,6 +129,7 @@ The full guidelines live in `.claude/rules/` and **load automatically when you e
 ## Delegation rules
 
 - **After implementing or modifying C# code**, delegate a quality review to the `csharp-code-reviewer` subagent. It reports findings; it does not edit files.
+- **After creating or modifying GitHub Actions workflow files** (`.github/workflows/*.yml` or composite actions), delegate a review to the `github-actions-reviewer` subagent. It reports findings; it does not edit files.
 - **When a new feature is implemented, or implementation details need documenting**, delegate to the `se-technical-writer` subagent to author or update Markdown docs under `docs/`.
 
 ## Common commands
