@@ -2,7 +2,9 @@
 # to nuget.org via Trusted Publishing (OIDC) — no stored API key.
 #
 # nuget.org Trusted Publishing policy match (configured on nuget.org):
-#   owner:          Andes-Software-Solutions
+#   policy creator: rorrorojas3  (individual account the policy lives under;
+#                                 this is the `user` for NuGet/login, NOT the org)
+#   policy owner:   Andes-Software-Solutions
 #   workflow file:  nuget.yml    (renaming this file breaks the policy)
 #   environment:    production   (must stay on the publish job)
 
@@ -116,7 +118,7 @@ jobs:
         id: login
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         with:
-          user: Andes-Software-Solutions
+          user: rorrorojas3
 
       # Quoted glob: NuGet expands it and pushes all three packages; matching
       # .snupkg symbol packages are pushed automatically alongside each .nupkg.
