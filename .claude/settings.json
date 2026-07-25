@@ -107,7 +107,10 @@
       "PowerShell(dotnet test tests\\\\Andes.Extensions.AI.Agent.Unit.Test\\\\Andes.Extensions.AI.Agent.Unit.Test.csproj 2>&1)",
       "PowerShell(dotnet build 2>&1)",
       "PowerShell(dotnet pack Andes.Extensions.AI.Agent -c Release 2>&1)",
-      "PowerShell(dotnet format --verify-no-changes 2>&1)"
+      "PowerShell(dotnet format --verify-no-changes 2>&1)",
+      "PowerShell(dotnet build \"C:\\\\Users\\\\Rorro\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Rorro-source-repos-Enterprise-AI\\\\c2840f7b-d9ae-42bc-b473-abee16c9c35c\\\\scratchpad\\\\ProgressBoardExample\\\\ProgressBoardExample.csproj\" 2>&1)",
+      "PowerShell(Remove-Item -Recurse -Force -Confirm:$false \"C:\\\\Users\\\\Rorro\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Rorro-source-repos-Enterprise-AI\\\\c2840f7b-d9ae-42bc-b473-abee16c9c35c\\\\scratchpad\\\\ProgressBoardExample\")",
+      "PowerShell(git -C c:\\\\Users\\\\Rorro\\\\source\\\\repos\\\\Enterprise.AI status --short)"
     ]
   },
   "model": "fable",

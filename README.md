@@ -123,6 +123,7 @@ See [Agent support](docs/agents.md) for details.
 - [Architecture](docs/architecture.md)
 - [MCP support](docs/mcp.md)
 - [Agent support](docs/agents.md)
+- [Example: the Progress Board — every tool kind in one stream](docs/examples/progress-board.md)
 
 ## License
 
