@@ -1,9 +1,7 @@
 {
   "permissions": {
     "allow": [],
-    "additionalDirectories": [
-      "C:\\Users\\Rorro\\source\\repos\\Enterprise.AI\\.claude\\skills\\github-actions-hardening\\references"
-    ]
+    "additionalDirectories": []
   },
   "model": "fable",
   "availableModels": ["fable"],
