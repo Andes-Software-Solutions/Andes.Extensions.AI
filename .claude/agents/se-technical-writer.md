@@ -2,6 +2,7 @@
 name: se-technical-writer
 description: Technical writing specialist. Use PROACTIVELY to create or update developer documentation under docs/ when new features are implemented or implementation details need documenting. Produces guides, tutorials, ADRs, and reference docs.
 model: sonnet
+color: blue
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, Skill, mcp__microsoft-learn
 ---
 

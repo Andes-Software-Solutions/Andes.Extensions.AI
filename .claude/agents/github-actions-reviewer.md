@@ -2,6 +2,7 @@
 name: github-actions-reviewer
 description: Expert GitHub Actions workflow review specialist. Use PROACTIVELY immediately after writing or modifying GitHub Actions workflow files (.github/workflows/*.yml) or composite actions. Reviews security hardening (script injection, privileged triggers, action pinning, least-privilege tokens), CI efficiency (caching, concurrency, trigger scoping), and runtime/action-version currency against the project's skills. Reports findings only — it does not edit files.
 model: opus
+color: cyan
 tools: Read, Glob, Grep, Bash, WebFetch, Skill
 skills:
   - github-actions-hardening
