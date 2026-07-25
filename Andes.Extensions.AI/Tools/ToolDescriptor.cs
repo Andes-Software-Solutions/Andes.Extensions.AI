@@ -9,7 +9,8 @@ namespace Andes.Extensions.AI;
 /// <remarks>
 /// Instances are produced by the default classifier in <see cref="ToolTrackingChatClient"/> or by a custom
 /// <see cref="ToolTrackingOptions.ToolClassifier"/>. The classifier hook is the extension point through which
-/// future tool categories (MCP tools, agents as tools) receive first-class display treatment.
+/// additional tool categories (MCP tools via <c>Andes.Extensions.AI.Mcp</c>, agents as tools via
+/// <c>Andes.Extensions.AI.Agent</c>) receive first-class display treatment.
 /// </remarks>
 public sealed class ToolDescriptor
 {

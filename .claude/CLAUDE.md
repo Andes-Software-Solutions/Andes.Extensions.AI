@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Project memory for **Andes.Extensions.AI** — a C#/.NET solution that ships **`Andes.Extensions.AI`** (core) and **`Andes.Extensions.AI.Mcp`** (MCP satellite), NuGet packages of composable **Microsoft.Extensions.AI `IChatClient` middlewares**. It loads automatically every session and governs how Claude Code works in this repository.
+Project memory for **Andes.Extensions.AI** — a C#/.NET solution that ships **`Andes.Extensions.AI`** (core), **`Andes.Extensions.AI.Mcp`** (MCP satellite), and **`Andes.Extensions.AI.Agent`** (Agent Framework satellite), NuGet packages of composable **Microsoft.Extensions.AI `IChatClient` middlewares**. It loads automatically every session and governs how Claude Code works in this repository.
 
 ## What this project is
 
@@ -11,7 +11,7 @@ Project memory for **Andes.Extensions.AI** — a C#/.NET solution that ships **`
 - Records token usage (input/output/total, model id, provider name from `ChatClientMetadata`) per request, per model turn (streaming), and per tool-call scope — including usage reported inside tools (`ChatProgress.ReportUsage`) and totals of nested tracked pipelines (AsyncLocal ambient scope tree) — rolled up into a `ChatUsageReport` (streaming: final `UsageReportContent` update; non-streaming: `ChatResponse.AdditionalProperties["andes.ai.usage_report"]`).
 - Numeric progress is first-class: `ChatProgress.Report(status, progress, progressTotal)` and `IChatProgressReporter.Report(status, progress, progressTotal)` (default interface method) populate `ChatProgressUpdate.Progress`/`ProgressTotal` (doubles, nullable).
 - **MCP tools ship via the satellite package `Andes.Extensions.AI.Mcp`** (references `ModelContextProtocol.Core` only — the core package must stay MCP-free): `WithTracking(...)` wraps an `McpClientTool` in the internal `McpTrackingAIFunction` (carries the server display name, bridges MCP progress notifications into `ToolProgress` updates via a per-invocation `WithProgress` + `McpProgressBridge` that captures `ChatProgress.Current` at invocation time — never ambiently at report time, since notifications arrive on the MCP receive loop), and `UseMcpToolClassification()` installs a composing `ToolClassifier` (`GetService(typeof(McpClientTool))` probe; wrapper name > resolver > default). User `DelegatingAIFunction` wrappers are never deep-unwrapped for bridging. Late notifications are dropped best-effort — no completion gate.
-- Agent-Framework-agents-as-tools remain a **future phase**: `ToolKind.Agent` is reserved and arrives via the same hooks. Do not add Agent Framework package references yet.
+- **Agent-Framework-agents-as-tools ship via the satellite package `Andes.Extensions.AI.Agent`** (references `Microsoft.Agents.AI` only — core and Mcp must stay Agent-Framework-free): `WithTracking(this AIAgent, ...)` wraps `agent.AsAIFunction()` in the internal `AgentTrackingAIFunction : DelegatingAIFunction` (exposes the **original** agent via `GetService` — the framework's `AsAIFunction()` exposes neither the agent nor `AgentResponse.Usage`), and `UseAgentToolClassification()` installs a composing `ToolClassifier` (`GetService<AIAgent>()` probe; resolver > agent name > function name for `DisplayName`; `Source` = agent name, else `Id`). Usage capture (`trackUsage: true` default) is an internal `UsageReportingAIAgent : DelegatingAIAgent` that calls `ChatProgress.ReportUsage(response.Usage)` after each successful run — **ambient resolution at run time is correct here** (agents run in-process on the caller's async flow; the inverse of the MCP bridge's capture-at-invocation). Pass `trackUsage: false` when the agent's own pipeline uses `UseToolTracking()` (nested rollup would double-count). Opt-in `reportFunctionCalls: true` uses the Agent Framework's function-invocation middleware to report `"Calling {Function} Tool"` statuses (names only; local function-invoking agents only — hosted agents throw).
 
 Key invariant: **`UseToolTracking()` must be registered before `UseFunctionInvocation()`** — the tracker wraps the tools that the `FunctionInvokingChatClient` executes and observes the merged stream from outside the invocation loop.
 
@@ -22,12 +22,15 @@ Privacy invariant: progress events and reports never carry prompt content, tool 
 - `Andes.Extensions.slnx` — solution (XML format).
 - `Andes.Extensions.AI\` — the core package source. Public surface at the root plus `Progress\`, `Usage\`, `Tools\`; implementation details in `Internal\` (plus the internal `TrackingAIFunction` in `Tools\`).
 - `Andes.Extensions.AI.Mcp\` — the MCP satellite package (RootNamespace `Andes.Extensions.AI`, MEAI-satellite convention). Public `McpToolTrackingExtensions` + `ToolTrackingOptionsMcpExtensions` at the root; `McpTrackingAIFunction`/`McpProgressBridge` in `Internal\`.
+- `Andes.Extensions.AI.Agent\` — the Agent Framework satellite package (same RootNamespace convention). Public `AgentToolTrackingExtensions` + `ToolTrackingOptionsAgentExtensions` at the root; `AgentTrackingAIFunction`/`UsageReportingAIAgent` in `Internal\`.
 - `tests\Andes.Extensions.AI.Unit.Test\` — core unit tests; no network. The `Infrastructure\ScriptedChatClient` fake replays scripted `ChatResponseUpdate` turns and drives the **real** `FunctionInvokingChatClient`.
 - `tests\Andes.Extensions.AI.Mcp.Unit.Test\` — MCP unit tests; no network. Links the core test infrastructure files (`<Compile Include Link>`), and `Infrastructure\InMemoryMcpFixture` hosts a **real** MCP client/server pair over in-process pipes (with a `ProgressAck` gate so progress tests are deterministic).
 - `tests\Andes.Extensions.AI.Integration.Test\` — Azure OpenAI tests. Configuration comes from a **gitignored `appsettings.integration.json`** (copy `appsettings.integration.sample.json`; section `AzureOpenAI` with `Endpoint`/`ApiKey`/`Deployment`). **Never environment variables.** Tests `[SkippableFact]`-skip cleanly when the file is missing or incomplete. Do not set `Temperature` in integration tests — reasoning-model deployments reject non-default values.
 - `tests\Andes.Extensions.AI.Mcp.Integration.Test\` — MCP Azure OpenAI tests; links the sibling's `AzureOpenAIFixture.cs` and its gitignored `appsettings.integration.json` (single config location), and spawns `Andes.Extensions.AI.TestMcpServer` over stdio.
+- `tests\Andes.Extensions.AI.Agent.Unit.Test\` — Agent satellite unit tests; no network. Links the core test infrastructure files; inner agents are real `ChatClientAgent`s built with `scriptedChatClient.AsAIAgent(...)`.
+- `tests\Andes.Extensions.AI.Agent.Integration.Test\` — Agent satellite Azure OpenAI tests; links `AzureOpenAIFixture.cs` and the shared gitignored `appsettings.integration.json`; the inner agent runs over a raw (untracked) chat client built from the fixture settings.
 - `tests\Andes.Extensions.AI.TestMcpServer\` — stdio MCP console server ("Andes Test MCP": `echo`, `add`, `count_down`) used by the MCP integration tests via `ProjectReference` + `dotnet <dll>`.
-- `docs\` — developer documentation (getting-started, architecture, mcp).
+- `docs\` — developer documentation (getting-started, architecture, mcp, agents).
 - Build infrastructure: `Directory.Build.props` (warnings as errors, C# 14, deterministic builds, XML docs required), `Directory.Packages.props` (**central package management — all versions live here**), `global.json` (SDK pin), `.editorconfig` (style rules; `CA2007` is an error in the library, off in tests via `tests\.editorconfig`).
 
 ## Project-specific conventions
@@ -37,8 +40,8 @@ Privacy invariant: progress events and reports never carry prompt content, tool 
 - `ConfigureAwait(false)` on every `await` in the library (enforced by CA2007-as-error); not required in tests.
 - Events and logs must never carry prompt content, tool arguments, or tool results. Tool-argument capture exists only behind `ToolTrackingOptions.IncludeToolArguments` (default `false`).
 - Public API changes require XML docs (missing docs fail the build) and a matching update under `docs\`.
-- Packaging metadata lives in each package's csproj; `dotnet pack -c Release` must produce the nupkg + snupkg with the README embedded (root README for core, `Andes.Extensions.AI.Mcp\README.md` for the satellite).
-- The two packages version in **lockstep** (both `0.2.0` today); the satellite's `ProjectReference` to core becomes a `>= {version}` NuGet dependency automatically.
+- Packaging metadata lives in each package's csproj; `dotnet pack -c Release` must produce the nupkg + snupkg with the README embedded (root README for core, each satellite's own `README.md` for the satellites).
+- The three packages version in **lockstep** (all `0.2.0` today); each satellite's `ProjectReference` to core becomes a `>= {version}` NuGet dependency automatically.
 
 ## C# coding standards (always)
 
@@ -135,6 +138,7 @@ dotnet build                                    # compile (net10.0, warnings are
 dotnet test                                     # unit tests + integration tests (integration auto-skips)
 dotnet pack Andes.Extensions.AI -c Release      # produce core nupkg + snupkg
 dotnet pack Andes.Extensions.AI.Mcp -c Release  # produce MCP satellite nupkg + snupkg
+dotnet pack Andes.Extensions.AI.Agent -c Release # produce Agent satellite nupkg + snupkg
 dotnet format                                   # apply .editorconfig formatting
 ```
 

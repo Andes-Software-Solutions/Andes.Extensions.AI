@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/Tests/">
+    <Project Path="tests/Andes.Extensions.AI.Agent.Integration.Test/Andes.Extensions.AI.Agent.Integration.Test.csproj" Id="9c1ec657-53ee-4fe7-8cf4-e4f48d84b693" />
+    <Project Path="tests/Andes.Extensions.AI.Agent.Unit.Test/Andes.Extensions.AI.Agent.Unit.Test.csproj" Id="2ee68524-fa5a-4fc2-aab3-cc1b9c2743f9" />
     <Project Path="tests/Andes.Extensions.AI.Integration.Test/Andes.Extensions.AI.Integration.Test.csproj" Id="1b2499a5-ca75-4f0f-b541-7781aa192d91" />
     <Project Path="tests/Andes.Extensions.AI.Mcp.Integration.Test/Andes.Extensions.AI.Mcp.Integration.Test.csproj" Id="93b5976e-eef3-418f-aa4f-b668182b7516" />
     <Project Path="tests/Andes.Extensions.AI.Mcp.Unit.Test/Andes.Extensions.AI.Mcp.Unit.Test.csproj" Id="5c0a806b-84af-4c2a-94c7-993c4b49f845" />
@@ -7,5 +9,6 @@
     <Project Path="tests/Andes.Extensions.AI.Unit.Test/Andes.Extensions.AI.Unit.Test.csproj" Id="aa0b3955-c394-47c8-b259-a524e083f75c" />
   </Folder>
   <Project Path="Andes.Extensions.AI/Andes.Extensions.AI.csproj" Id="b978533c-fcba-4381-a808-2a06e7823292" />
+  <Project Path="Andes.Extensions.AI.Agent/Andes.Extensions.AI.Agent.csproj" Id="96d19435-0505-4bc0-a41a-758f6c94ae4a" />
   <Project Path="Andes.Extensions.AI.Mcp/Andes.Extensions.AI.Mcp.csproj" Id="daf4c439-fcd0-446f-b067-097f50a6be4b" />
 </Solution>

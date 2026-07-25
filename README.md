@@ -90,15 +90,40 @@ var chatOptions = new ChatOptions { Tools = mcpTools.WithTracking(mcpClient) };
 
 See [MCP support](docs/mcp.md) for details.
 
+## Agent tools
+
+Microsoft Agent Framework agents run as tracked tools through their own satellite package:
+
+```shell
+dotnet add package Andes.Extensions.AI.Agent
+```
+
+Agents wrapped with `WithTracking()` classify as `ToolKind.Agent` and render as `"Calling {Agent} Agent"`, and each run's `AgentResponse.Usage` is attributed to the calling tool's scope — a plain `agent.AsAIFunction()` exposes neither:
+
+```csharp
+AIAgent weatherAgent = weatherChatClient.AsAIAgent(
+    instructions: "You answer questions about the weather.",
+    name: "Weather Agent",
+    tools: [AIFunctionFactory.Create(GetWeather)]);
+
+IChatClient client = innerClient
+    .AsBuilder()
+    .UseToolTracking(options => options.UseAgentToolClassification())
+    .UseFunctionInvocation()
+    .Build();
+
+var chatOptions = new ChatOptions { Tools = [weatherAgent.WithTracking()] };
+```
+
+See [Agent support](docs/agents.md) for details.
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
 - [Architecture](docs/architecture.md)
 - [MCP support](docs/mcp.md)
-
-## Roadmap
-
-First-class classification for **Microsoft Agent Framework agents as tools** (`Calling {Agent} Agent`) — the `ToolClassifier` / `HeaderFormatter` hooks and `ToolKind.Agent` reserve the space today.
+- [Agent support](docs/agents.md)
+- [Example: the Progress Board — every tool kind in one stream](docs/examples/progress-board.md)
 
 ## License
 
