@@ -55,7 +55,7 @@ public sealed class AgentToolTrackingIntegrationTests(AzureOpenAIFixture fixture
         ChatProgressUpdate? invoking = observer.Updates.FirstOrDefault(update =>
             update.Kind == ChatProgressKind.ToolInvoking && update.ToolKind == ToolKind.Agent);
         Assert.NotNull(invoking);
-        Assert.Equal("Calling Weather Agent Agent", invoking.Message);
+        Assert.Equal("Calling Weather Agent", invoking.Message);
         Assert.Equal("Weather_Agent", invoking.ToolName);
         Assert.Equal("Weather Agent", invoking.ToolSource);
 

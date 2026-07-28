@@ -18,7 +18,7 @@ public class AgentFunctionCallReportingTests
             update => update.Kind == ChatProgressKind.ToolProgress && update.Message == "Calling GetWeather Tool");
         Assert.Equal("Weather_Agent", subheader.ToolName);
         ChatProgressUpdate invoking = Assert.Single(progress, update => update.Kind == ChatProgressKind.ToolInvoking);
-        Assert.Equal("Calling Weather Agent Agent", invoking.Message);
+        Assert.Equal("Calling Weather Agent", invoking.Message);
     }
 
     [Fact]

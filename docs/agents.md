@@ -2,7 +2,7 @@
 
 `Andes.Extensions.AI.Agent` adds [Microsoft Agent Framework](https://learn.microsoft.com/agent-framework/) support to the core [`Andes.Extensions.AI`](getting-started.md) tool-tracking middleware. The framework already lets any `AIAgent` act as a tool — [`AsAIFunction()`](https://learn.microsoft.com/dotnet/api/microsoft.agents.ai.aiagentextensions.asaifunction) turns an agent into an `AIFunction` another model can call — but that function is a plain product of `AIFunctionFactory.Create`: it exposes neither the agent behind it (nothing to discover via `GetService`) nor the run's `AgentResponse.Usage` (it returns only the response text). Without this package, an agent-as-tool classifies as an ordinary `ToolKind.Function` and reports zero token usage. This satellite package supplies both:
 
-1. **Classification** — agents wrapped with `WithTracking()` are recognized as `ToolKind.Agent` and render with the core's `"Calling {Agent} Agent"` header in progress events and usage reports (the header and the `ToolKind.Agent` value have existed in core since v0.2, reserved for exactly this).
+1. **Classification** — agents wrapped with `WithTracking()` are recognized as `ToolKind.Agent` and render with the core's `"Calling {Agent} Agent"` header in progress events and usage reports (the header and the `ToolKind.Agent` value have existed in core since v0.2, reserved for exactly this). The trailing `Agent` is dropped when the agent's name already ends with it, so `"Research Agent"` renders as `"Calling Research Agent"`, not `"Calling Research Agent Agent"`.
 2. **Usage capture** — each run's `AgentResponse.Usage` is attributed to the calling tool's scope, so the agent's token consumption lands in the `ChatUsageReport` even when its pipeline cannot be instrumented.
 
 A third capability is opt-in: reporting the agent's own function calls as progress statuses — see [Seeing the agent's own function calls](#seeing-the-agents-own-function-calls).
@@ -49,7 +49,7 @@ A typical rendering while the outer model delegates to the agent:
 ```text
 [RequestStarted] Starting request
 [Thinking] Thinking...
-  [ToolInvoking] Calling Weather Agent Agent
+  [ToolInvoking] Calling Weather Agent
     [ToolProgress] Calling GetWeather Tool
     [ToolProgress] Extracting...
   [ToolCompleted] Weather_Agent completed

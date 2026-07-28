@@ -117,13 +117,39 @@ var chatOptions = new ChatOptions { Tools = [weatherAgent.WithTracking()] };
 
 See [Agent support](docs/agents.md) for details.
 
+## UI
+
+A serializable status contract for streaming progress to a UI ships as its own satellite package — a matching C# and TypeScript shape, so a Blazor app and a SPA render the same activity tree from the same JSON:
+
+```shell
+dotnet add package Andes.Extensions.AI.UI
+```
+
+Stream `AssistantStatusSnapshot` instead of parsing `ChatResponseUpdate` yourself. Each activity carries a clean `DisplayName` plus a separate `Kind` badge — never a composed "Calling … MCP/Agent/Tool" string, so the kind word is never repeated:
+
+```csharp
+await foreach (AssistantStatusSnapshot snapshot in client
+    .GetStreamingResponseAsync("prompt", chatOptions)
+    .ToStatusSnapshotsAsync())
+{
+    foreach (AssistantActivity activity in snapshot.Activities)
+    {
+        Console.WriteLine($"{activity.DisplayName} [{activity.Kind}] — {activity.State}");
+    }
+}
+```
+
+For an HTTP surface, stream `ToUiEventsAsync()` instead and serialize each event with the package's `AssistantUiJsonContext` over server-sent events; a browser or Blazor client folds them with the shipped TypeScript `foldAssistantEvents` or the C# `AssistantStatusReducer`. See [UI support](docs/ui.md) for details.
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
 - [Architecture](docs/architecture.md)
 - [MCP support](docs/mcp.md)
 - [Agent support](docs/agents.md)
+- [UI support](docs/ui.md)
 - [Example: the Progress Board — every tool kind in one stream](docs/examples/progress-board.md)
+- [Example: the UI contract, three ways](docs/examples/ui-contract.md)
 
 ## License
 

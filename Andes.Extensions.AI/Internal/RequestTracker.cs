@@ -336,13 +336,24 @@ internal sealed class RequestTracker
 
     internal static string DefaultHeader(ToolDescriptor descriptor)
     {
+        // The kind label ("MCP", "Agent", "Tool") is appended only when the display name (or the
+        // MCP server source) does not already end with it, so a server named "Andes Test MCP" or
+        // an agent named "Research Agent" reads as "Calling Andes Test MCP" / "Calling Research
+        // Agent" instead of doubling the word.
         return descriptor.Kind switch
         {
-            ToolKind.McpTool => $"Calling {descriptor.Source ?? descriptor.DisplayName} MCP",
-            ToolKind.Agent => $"Calling {descriptor.DisplayName} Agent",
-            ToolKind.Function => $"Calling {descriptor.DisplayName} Tool",
+            ToolKind.McpTool => Compose(descriptor.Source ?? descriptor.DisplayName, "MCP"),
+            ToolKind.Agent => Compose(descriptor.DisplayName, "Agent"),
+            ToolKind.Function => Compose(descriptor.DisplayName, "Tool"),
             _ => $"Calling {descriptor.DisplayName}",
         };
+
+        static string Compose(string name, string suffix)
+        {
+            return name.TrimEnd().EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+                ? $"Calling {name}"
+                : $"Calling {name} {suffix}";
+        }
     }
 
     private static ToolCallUsage BuildToolCallUsage(ToolScope scope)

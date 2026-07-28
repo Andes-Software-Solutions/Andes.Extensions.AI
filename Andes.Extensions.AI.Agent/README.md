@@ -39,7 +39,7 @@ await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync("pr
 {
     foreach (ChatProgressContent progress in update.Contents.OfType<ChatProgressContent>())
     {
-        // e.g. "Calling Weather Agent Agent" (header), then any statuses the agent's tools report
+        // e.g. "Calling Weather Agent" (header), then any statuses the agent's tools report
         Console.WriteLine(progress.Progress.Message);
     }
 }

@@ -3,7 +3,7 @@
 This example wires **all three tool kinds** into one tracked `IChatClient` pipeline — a plain function tool (`ToolKind.Function`), MCP tools via [`Andes.Extensions.AI.Mcp`](../mcp.md) (`ToolKind.McpTool`), and a Microsoft Agent Framework agent-as-tool via [`Andes.Extensions.AI.Agent`](../agents.md) (`ToolKind.Agent`) — and shows how the merged stream propagates to a UI. Two things make it more than a bigger [quickstart](../getting-started.md):
 
 1. **The app talks to the UI before the pipeline does.** The streaming service yields its own status messages through the same `IAsyncEnumerable` *before* `GetStreamingResponseAsync` is ever called, so "Connecting to tools…"-style lines and the pipeline's in-band events reach the consumer through one channel.
-2. **A `ProgressBoard` folds the event stream into a hierarchy of boxes.** Built purely on the public `ChatProgressUpdate` contract, it turns each tool call into a separate box — a title (the header, e.g. "Calling Andes Test MCP MCP") plus subtitle lines (MCP numeric progress, the agent's inner tool statuses, function-reported statuses) — the shape a real UI would render as cards.
+2. **A `ProgressBoard` folds the event stream into a hierarchy of boxes.** Built purely on the public `ChatProgressUpdate` contract, it turns each tool call into a separate box — a title (the header, e.g. "Calling Andes Test MCP") plus subtitle lines (MCP numeric progress, the agent's inner tool statuses, function-reported statuses) — the shape a real UI would render as cards.
 
 The five listings form a runnable console application. The MCP leg uses the in-repo stdio test server `tests\Andes.Extensions.AI.TestMcpServer` ("Andes Test MCP", with `echo`, `add`, and `count_down`, which streams one progress notification per step), so nothing external is needed beyond a model provider: the reader supplies `CreateProviderClient()` (any `IChatClient` — see [Getting started](../getting-started.md#end-to-end-with-azure-openai) for an Azure OpenAI version), and to run the MCP leg, build the test server and place its dll in (or point the stdio arguments at) the app's output directory, exactly as `Program.cs` does — a `ProjectReference` to the server project is the simplest way, the same technique the MCP integration tests use.
 
@@ -217,7 +217,7 @@ public sealed class ProgressBox
     /// <summary>The scope identifier this box tracks (from <see cref="ChatProgressUpdate.ScopeId"/>).</summary>
     public required string ScopeId { get; init; }
 
-    /// <summary>The box title — the tool header, e.g. "Calling Andes Test MCP MCP".</summary>
+    /// <summary>The box title — the tool header, e.g. "Calling Andes Test MCP".</summary>
     public required string Title { get; init; }
 
     /// <summary>The tool category, for a badge or icon.</summary>
@@ -418,11 +418,11 @@ Condensed (the renderer reprints the board on every event; this is the two app-a
 ┌ Calling GetForecast Tool  [done in 0.2s]
 │   Contacting the forecast service…
 │   Crunching the numbers… (2/3)
-┌ Calling Andes Test MCP MCP  [done in 0.8s]
+┌ Calling Andes Test MCP  [done in 0.8s]
 │   step 1 of 3 (1/3)
 │   step 2 of 3 (2/3)
 │   step 3 of 3 (3/3)
-┌ Calling Research Agent Agent  [done in 2.1s]
+┌ Calling Research Agent  [done in 2.1s]
 │   Calling SearchDocs Tool
 │   Summarizing…
 A day in Quito: sunny all week, countdown complete, and the old town ...

@@ -75,6 +75,39 @@ public class ToolClassificationTests
         Assert.Equal("Calling Weather Service Tool", invoking.Message);
     }
 
+    [Theory]
+    [InlineData(ToolKind.Function, "GetForecast", null, "Calling GetForecast Tool")]
+    [InlineData(ToolKind.Function, "Weather Tool", null, "Calling Weather Tool")]
+    [InlineData(ToolKind.Agent, "Research", null, "Calling Research Agent")]
+    [InlineData(ToolKind.Agent, "Research Agent", null, "Calling Research Agent")]
+    [InlineData(ToolKind.McpTool, null, "weather-server", "Calling weather-server MCP")]
+    [InlineData(ToolKind.McpTool, null, "Andes Test MCP", "Calling Andes Test MCP")]
+    [InlineData(ToolKind.McpTool, null, "andes test mcp", "Calling andes test mcp")]
+    public async Task DefaultHeader_NameEndingWithKindWord_DoesNotRepeatIt(
+        ToolKind kind,
+        string? name,
+        string? source,
+        string expectedHeader)
+    {
+        var scripted = new ScriptedChatClient(
+            ScriptedTurn.FunctionCall("call-1", "get_forecast"),
+            ScriptedTurn.Text("Done."));
+        AIFunction tool = AIFunctionFactory.Create(() => "sunny", "get_forecast");
+        IChatClient client = TestPipeline.Build(scripted, options =>
+            options.ToolClassifier = candidate => new ToolDescriptor
+            {
+                Name = name ?? candidate.Name,
+                Kind = kind,
+                Source = source,
+            });
+
+        List<ChatResponseUpdate> updates = await TestPipeline.CollectAsync(client, new ChatOptions { Tools = [tool] });
+        List<ChatProgressUpdate> progress = TestPipeline.ProgressOf(updates);
+
+        ChatProgressUpdate invoking = Assert.Single(progress, update => update.Kind == ChatProgressKind.ToolInvoking);
+        Assert.Equal(expectedHeader, invoking.Message);
+    }
+
     [Fact]
     public void CreateDefault_AIFunction_ReturnsFunctionKind()
     {
