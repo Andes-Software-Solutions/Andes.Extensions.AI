@@ -9,6 +9,7 @@
     <Description>Microsoft Agent Framework support for Andes.Extensions.AI tool tracking: classifies agents exposed as function tools as agent tools ("Calling {Agent} Agent"), attributes each agent run's token usage to the calling tool's scope, and optionally reports the agent's own function invocations as progress statuses.</Description>
     <PackageTags>AI;IChatClient;Microsoft.Extensions.AI;AgentFramework;Microsoft.Agents.AI;agents;middleware;progress;tools</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/RorroRojas3/Enterprise.AI</RepositoryUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -19,6 +20,7 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

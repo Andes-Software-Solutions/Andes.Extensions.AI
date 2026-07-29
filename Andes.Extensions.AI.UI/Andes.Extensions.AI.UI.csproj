@@ -9,6 +9,7 @@
     <Description>UI status contract for Andes.Extensions.AI tool tracking: serializable records (and a matching TypeScript interface) that project the tracked chat stream into an assistant-activity hierarchy — the assistant's own functions, MCP tools, and agents, each with sub-statuses, nested children, and token usage — for rendering live progress in Blazor, a console, or any TypeScript SPA.</Description>
     <PackageTags>AI;IChatClient;Microsoft.Extensions.AI;UI;Blazor;TypeScript;progress;streaming;middleware;tools</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/RorroRojas3/Enterprise.AI</RepositoryUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -19,6 +20,7 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\icon.png" Pack="true" PackagePath="\" />
     <None Include="typescript\andes-assistant-ui.ts" Pack="true" PackagePath="typescript\" />
   </ItemGroup>
 

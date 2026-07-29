@@ -9,6 +9,7 @@
     <Description>Model Context Protocol (MCP) support for Andes.Extensions.AI tool tracking: classifies McpClientTool instances as MCP tools ("Calling {Server} MCP") and bridges MCP progress notifications into chat progress updates with numeric progress values.</Description>
     <PackageTags>AI;IChatClient;Microsoft.Extensions.AI;MCP;ModelContextProtocol;middleware;progress;tools</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/RorroRojas3/Enterprise.AI</RepositoryUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -19,6 +20,7 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
