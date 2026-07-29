@@ -4,14 +4,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Andes.Extensions.AI</RootNamespace>
     <PackageId>Andes.Extensions.AI</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <Authors>Rodrigo Rojas</Authors>
     <Description>Middleware extensions for Microsoft.Extensions.AI: per-request and per-tool token usage tracking, and streaming status/progress propagation for IChatClient pipelines.</Description>
     <PackageTags>AI;IChatClient;Microsoft.Extensions.AI;middleware;tokens;usage;streaming;progress;tools</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <RepositoryUrl>https://github.com/RorroRojas3/Enterprise.AI</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Andes-Software-Solutions/Andes.Extensions.AI</RepositoryUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IncludeSymbols>true</IncludeSymbols>

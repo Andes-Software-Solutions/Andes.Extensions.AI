@@ -46,4 +46,4 @@ For an HTTP surface, stream `ToUiEventsAsync()` instead and serialize each event
 - Progress values from MCP servers are single-precision floats widened to `double`; format with a rounding specifier such as `"0.#"` before display.
 - Privacy posture matches the core package: events and snapshots never carry prompt content, tool arguments, or tool results — only headers, statuses, names, and token counts.
 
-Full documentation lives in the [repository docs](https://github.com/RorroRojas3/Enterprise.AI/tree/main/docs).
+Full documentation lives in the [repository docs](https://github.com/Andes-Software-Solutions/Andes.Extensions.AI/tree/main/docs).
