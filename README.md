@@ -68,7 +68,7 @@ ChatResponse response = updates.ToChatResponse().StripProgressContent();
 
 ## MCP tools
 
-First-class MCP support ships as a satellite package so the core stays dependency-lean:
+First-class MCP support ships as a satellite package, [Andes.Extensions.AI.Mcp](https://www.nuget.org/packages/Andes.Extensions.AI.Mcp), so the core stays dependency-lean:
 
 ```shell
 dotnet add package Andes.Extensions.AI.Mcp
@@ -92,7 +92,7 @@ See [MCP support](docs/mcp.md) for details.
 
 ## Agent tools
 
-Microsoft Agent Framework agents run as tracked tools through their own satellite package:
+Microsoft Agent Framework agents run as tracked tools through their own satellite package, [Andes.Extensions.AI.Agent](https://www.nuget.org/packages/Andes.Extensions.AI.Agent):
 
 ```shell
 dotnet add package Andes.Extensions.AI.Agent
@@ -132,7 +132,7 @@ See [Agent support](docs/agents.md) for details.
 
 ## UI
 
-A serializable status contract for streaming progress to a UI ships as its own satellite package — a matching C# and TypeScript shape, so a Blazor app and a SPA render the same activity tree from the same JSON:
+A serializable status contract for streaming progress to a UI ships as its own satellite package, [Andes.Extensions.AI.UI](https://www.nuget.org/packages/Andes.Extensions.AI.UI) — a matching C# and TypeScript shape, so a Blazor app and a SPA render the same activity tree from the same JSON:
 
 ```shell
 dotnet add package Andes.Extensions.AI.UI

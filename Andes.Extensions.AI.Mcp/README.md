@@ -52,4 +52,4 @@ Nested calls render as their own activity: when a `WithTracking`-wrapped tool ru
 - Progress notifications arrive on the MCP client's receive loop and are delivered best-effort: a notification racing the end of the request may be dropped.
 - Privacy posture matches the core package: progress events never carry prompt content, tool arguments, or tool results.
 
-Full documentation lives in the [repository docs](https://github.com/RorroRojas3/Enterprise.AI/tree/main/docs).
+Full documentation lives in the [repository docs](https://github.com/Andes-Software-Solutions/Andes.Extensions.AI/tree/main/docs).

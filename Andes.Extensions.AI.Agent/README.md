@@ -56,4 +56,4 @@ Nested agents render as their own activity: when a `WithTracking`-wrapped agent 
 - Usage capture reports whatever the agent implementation surfaces on `AgentResponse.Usage`; agents that report no usage attribute nothing.
 - Privacy posture matches the core package: progress events never carry prompt content, tool arguments, or tool results.
 
-Full documentation lives in the [repository docs](https://github.com/RorroRojas3/Enterprise.AI/tree/main/docs).
+Full documentation lives in the [repository docs](https://github.com/Andes-Software-Solutions/Andes.Extensions.AI/tree/main/docs).
