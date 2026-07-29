@@ -28,6 +28,13 @@ public static class AgentToolTrackingExtensions
     /// through <see cref="ChatProgress.Report(string)"/> already surface beneath the agent's header
     /// without any configuration here.
     /// <para>
+    /// Nested invocations open their own child scope: when the wrapped function is used as a tool
+    /// of another agent, or invoked directly inside a tool body, the agent renders as its own
+    /// child activity (with its usage attributed to that child) instead of flat sub-statuses on
+    /// the enclosing tool. A recursive self-invocation (the same wrapped function invoked from
+    /// within its own run) is indistinguishable from the tracker's own delegation and stays flat.
+    /// </para>
+    /// <para>
     /// Pass <paramref name="trackUsage"/> as <see langword="false"/> when the agent's own chat
     /// client pipeline uses <c>UseToolTracking()</c>: the nested pipeline already rolls its total
     /// usage up into the calling tool's scope, and reporting <see cref="AgentResponse.Usage"/> on

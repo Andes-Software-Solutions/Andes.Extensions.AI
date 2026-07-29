@@ -59,7 +59,9 @@ public sealed class ToolTrackingOptions
     /// <summary>
     /// Gets or sets a callback that formats the header message for a tool invocation.
     /// When <see langword="null"/>, the default produces "Calling {DisplayName} Tool" for functions,
-    /// "Calling {Source} MCP" for MCP tools, and "Calling {DisplayName} Agent" for agents.
+    /// "Calling {Source} MCP" for MCP tools, and "Calling {DisplayName} Agent" for agents. The kind
+    /// word is omitted when the name already ends with it (case-insensitive), so a server named
+    /// "Andes Test MCP" or an agent named "Research Agent" is not doubled.
     /// </summary>
     public Func<ToolDescriptor, string>? HeaderFormatter { get; set; }
 

@@ -133,7 +133,7 @@ public class AgentToolClassificationTests
         List<ChatProgressUpdate> progress = TestPipeline.ProgressOf(updates);
 
         ChatProgressUpdate invoking = Assert.Single(progress, update => update.Kind == ChatProgressKind.ToolInvoking);
-        Assert.Equal("Calling Weather Agent Agent", invoking.Message);
+        Assert.Equal("Calling Weather Agent", invoking.Message);
         Assert.Equal(ToolKind.Agent, invoking.ToolKind);
         Assert.Equal("Weather Agent", invoking.ToolSource);
 

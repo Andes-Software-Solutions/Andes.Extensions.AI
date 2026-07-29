@@ -24,6 +24,8 @@ mono_crash.*
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
+# ...but keep the top-level release notes folder
+!/releases/
 x64/
 x86/
 [Ww][Ii][Nn]32/
@@ -483,3 +485,6 @@ $RECYCLE.BIN/
 
 # Local integration-test secrets (see appsettings.integration.sample.json)
 appsettings.integration.json
+
+# Local demo secrets (see samples/Andes.Extensions.AI.Demo/appsettings.sample.json)
+samples/**/appsettings.json

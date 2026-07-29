@@ -115,7 +115,56 @@ IChatClient client = innerClient
 var chatOptions = new ChatOptions { Tools = [weatherAgent.WithTracking()] };
 ```
 
+Agents nest (v0.3): a `WithTracking`-wrapped agent used as a tool of another agent — or invoked directly inside a tool body — opens its own child scope, rendering live as a child activity card with its own statuses, duration, and token usage in the report:
+
+```text
+✓ Research Agent  agent  6.0s · 1,317 tok
+  ├── Calling SearchNotes Tool
+  ├── Searching notes…
+  ├── Calling Packing_Agent Tool
+  └── ✓ Packing Agent  agent  2.4s · 504 tok
+      └── Checking essentials…
+```
+
+The same applies to nested MCP tools, and any tool can give a sub-operation its own child card with `ChatProgress.BeginToolScope(new ToolDescriptor { ... })`.
+
 See [Agent support](docs/agents.md) for details.
+
+## UI
+
+A serializable status contract for streaming progress to a UI ships as its own satellite package — a matching C# and TypeScript shape, so a Blazor app and a SPA render the same activity tree from the same JSON:
+
+```shell
+dotnet add package Andes.Extensions.AI.UI
+```
+
+Stream `AssistantStatusSnapshot` instead of parsing `ChatResponseUpdate` yourself. Each activity carries a clean `DisplayName` plus a separate `Kind` badge — never a composed "Calling … MCP/Agent/Tool" string, so the kind word is never repeated:
+
+```csharp
+await foreach (AssistantStatusSnapshot snapshot in client
+    .GetStreamingResponseAsync("prompt", chatOptions)
+    .ToStatusSnapshotsAsync())
+{
+    foreach (AssistantActivity activity in snapshot.Activities)
+    {
+        Console.WriteLine($"{activity.DisplayName} [{activity.Kind}] — {activity.State}");
+    }
+}
+```
+
+For an HTTP surface, stream `ToUiEventsAsync()` instead and serialize each event with the package's `AssistantUiJsonContext` over server-sent events; a browser or Blazor client folds them with the shipped TypeScript `foldAssistantEvents` or the C# `AssistantStatusReducer`. See [UI support](docs/ui.md) for details.
+
+## Samples
+
+`samples/Andes.Extensions.AI.Demo` is an interactive console chat that exercises all four packages in one tracked pipeline and renders live activity — function/MCP/agent cards, progress bars, token usage — Claude-Code-style with Spectre.Console:
+
+```bash
+cp samples/Andes.Extensions.AI.Demo/appsettings.sample.json samples/Andes.Extensions.AI.Demo/appsettings.json
+# fill in the AzureOpenAI section, then:
+dotnet run --project samples/Andes.Extensions.AI.Demo
+```
+
+See the [sample README](samples/Andes.Extensions.AI.Demo/README.md) for what each file demonstrates.
 
 ## Documentation
 
@@ -123,7 +172,11 @@ See [Agent support](docs/agents.md) for details.
 - [Architecture](docs/architecture.md)
 - [MCP support](docs/mcp.md)
 - [Agent support](docs/agents.md)
+- [UI support](docs/ui.md)
 - [Example: the Progress Board — every tool kind in one stream](docs/examples/progress-board.md)
+- [Example: the UI contract, three ways](docs/examples/ui-contract.md)
+- [Sample: the interactive demo console app](samples/Andes.Extensions.AI.Demo/README.md)
+- [Release notes](releases/)
 
 ## License
 

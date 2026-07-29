@@ -96,7 +96,8 @@ public class McpToolClassificationTests(InMemoryMcpFixture fixture) : IClassFixt
         List<ChatProgressUpdate> progress = TestPipeline.ProgressOf(updates);
 
         ChatProgressUpdate invoking = Assert.Single(progress, update => update.Kind == ChatProgressKind.ToolInvoking);
-        Assert.Equal($"Calling {InMemoryMcpFixture.ServerName} MCP", invoking.Message);
+        // ServerName already ends with "MCP", so the default header does not append the kind word again.
+        Assert.Equal($"Calling {InMemoryMcpFixture.ServerName}", invoking.Message);
         Assert.Equal(ToolKind.McpTool, invoking.ToolKind);
         Assert.Equal(InMemoryMcpFixture.ServerName, invoking.ToolSource);
 

@@ -47,7 +47,7 @@ public sealed class McpToolTrackingIntegrationTests(AzureOpenAIFixture fixture) 
             update.Kind == ChatProgressKind.ToolInvoking && update.ToolKind == ToolKind.McpTool);
         Assert.NotNull(invoking);
         Assert.Equal("Andes Test MCP", invoking.ToolSource);
-        Assert.Equal("Calling Andes Test MCP MCP", invoking.Message);
+        Assert.Equal("Calling Andes Test MCP", invoking.Message);
         Assert.Equal("echo", invoking.ToolName);
 
         Assert.NotNull(observer.Report);

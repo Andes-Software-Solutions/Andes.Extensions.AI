@@ -1,4 +1,5 @@
-# Publishes Andes.Extensions.AI, Andes.Extensions.AI.Mcp, and Andes.Extensions.AI.Agent
+# Publishes Andes.Extensions.AI, Andes.Extensions.AI.Mcp, Andes.Extensions.AI.Agent,
+# and Andes.Extensions.AI.UI
 # to nuget.org via Trusted Publishing (OIDC) — no stored API key.
 #
 # nuget.org Trusted Publishing policy match (configured on nuget.org):
@@ -51,13 +52,14 @@ jobs:
       - name: Test
         run: dotnet test Andes.Extensions.slnx --configuration Release --no-build
 
-      # Pack ONLY the three shipping projects into a dedicated output directory.
+      # Pack ONLY the four shipping projects into a dedicated output directory.
       # (Test projects are packable too, so never pack the solution or glob bin/.)
       - name: Pack
         run: |
           dotnet pack Andes.Extensions.AI/Andes.Extensions.AI.csproj --configuration Release --no-build --output packages
           dotnet pack Andes.Extensions.AI.Mcp/Andes.Extensions.AI.Mcp.csproj --configuration Release --no-build --output packages
           dotnet pack Andes.Extensions.AI.Agent/Andes.Extensions.AI.Agent.csproj --configuration Release --no-build --output packages
+          dotnet pack Andes.Extensions.AI.UI/Andes.Extensions.AI.UI.csproj --configuration Release --no-build --output packages
 
       # For release runs, also require the packed version to match the release tag —
       # otherwise --skip-duplicate would turn an unbumped <Version> into a green no-op.
@@ -67,15 +69,15 @@ jobs:
         run: |
           nupkg_count=$(ls packages/*.nupkg | wc -l)
           snupkg_count=$(ls packages/*.snupkg | wc -l)
-          if [ "$nupkg_count" -ne 3 ] || [ "$snupkg_count" -ne 3 ]; then
-            echo "Expected 3 .nupkg + 3 .snupkg, found $nupkg_count .nupkg / $snupkg_count .snupkg" >&2
+          if [ "$nupkg_count" -ne 4 ] || [ "$snupkg_count" -ne 4 ]; then
+            echo "Expected 4 .nupkg + 4 .snupkg, found $nupkg_count .nupkg / $snupkg_count .snupkg" >&2
             exit 1
           fi
           if [ -n "$RELEASE_TAG" ]; then
             expected="${RELEASE_TAG#v}"
-            for pkg in Andes.Extensions.AI Andes.Extensions.AI.Mcp Andes.Extensions.AI.Agent; do
+            for pkg in Andes.Extensions.AI Andes.Extensions.AI.Mcp Andes.Extensions.AI.Agent Andes.Extensions.AI.UI; do
               if [ ! -f "packages/$pkg.$expected.nupkg" ]; then
-                echo "Release tag $RELEASE_TAG expects $pkg.$expected.nupkg — bump <Version> in the three csprojs" >&2
+                echo "Release tag $RELEASE_TAG expects $pkg.$expected.nupkg — bump <Version> in the four csprojs" >&2
                 exit 1
               fi
             done
@@ -120,7 +122,7 @@ jobs:
         with:
           user: rorrorojas3
 
-      # Quoted glob: NuGet expands it and pushes all three packages; matching
+      # Quoted glob: NuGet expands it and pushes all four packages; matching
       # .snupkg symbol packages are pushed automatically alongside each .nupkg.
       - name: Push packages
         env:

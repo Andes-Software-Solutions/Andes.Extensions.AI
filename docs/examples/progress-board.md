@@ -3,7 +3,7 @@
 This example wires **all three tool kinds** into one tracked `IChatClient` pipeline — a plain function tool (`ToolKind.Function`), MCP tools via [`Andes.Extensions.AI.Mcp`](../mcp.md) (`ToolKind.McpTool`), and a Microsoft Agent Framework agent-as-tool via [`Andes.Extensions.AI.Agent`](../agents.md) (`ToolKind.Agent`) — and shows how the merged stream propagates to a UI. Two things make it more than a bigger [quickstart](../getting-started.md):
 
 1. **The app talks to the UI before the pipeline does.** The streaming service yields its own status messages through the same `IAsyncEnumerable` *before* `GetStreamingResponseAsync` is ever called, so "Connecting to tools…"-style lines and the pipeline's in-band events reach the consumer through one channel.
-2. **A `ProgressBoard` folds the event stream into a hierarchy of boxes.** Built purely on the public `ChatProgressUpdate` contract, it turns each tool call into a separate box — a title (the header, e.g. "Calling Andes Test MCP MCP") plus subtitle lines (MCP numeric progress, the agent's inner tool statuses, function-reported statuses) — the shape a real UI would render as cards.
+2. **A `ProgressBoard` folds the event stream into a hierarchy of boxes.** Built purely on the public `ChatProgressUpdate` contract, it turns each tool call into a separate box — a title (the header, e.g. "Calling Andes Test MCP") plus subtitle lines (MCP numeric progress, the agent's inner tool statuses, function-reported statuses) — the shape a real UI would render as cards.
 
 The five listings form a runnable console application. The MCP leg uses the in-repo stdio test server `tests\Andes.Extensions.AI.TestMcpServer` ("Andes Test MCP", with `echo`, `add`, and `count_down`, which streams one progress notification per step), so nothing external is needed beyond a model provider: the reader supplies `CreateProviderClient()` (any `IChatClient` — see [Getting started](../getting-started.md#end-to-end-with-azure-openai) for an Azure OpenAI version), and to run the MCP leg, build the test server and place its dll in (or point the stdio arguments at) the app's output directory, exactly as `Program.cs` does — a `ProjectReference` to the server project is the simplest way, the same technique the MCP integration tests use.
 
@@ -217,7 +217,7 @@ public sealed class ProgressBox
     /// <summary>The scope identifier this box tracks (from <see cref="ChatProgressUpdate.ScopeId"/>).</summary>
     public required string ScopeId { get; init; }
 
-    /// <summary>The box title — the tool header, e.g. "Calling Andes Test MCP MCP".</summary>
+    /// <summary>The box title — the tool header, e.g. "Calling Andes Test MCP".</summary>
     public required string Title { get; init; }
 
     /// <summary>The tool category, for a badge or icon.</summary>
@@ -333,7 +333,7 @@ In this example, three different mechanisms land as subtitles — and every one 
 
 - **The function tool's own `ChatProgress.Report(...)` calls** — "Contacting the forecast service…", then "Crunching the numbers…" with numeric progress, which `FormatSubtitle` renders as `(2/3)`.
 - **The MCP server's bridged `notifications/progress`** — `count_down` reports one notification per step, which the [progress bridge](../mcp.md#how-the-progress-bridge-works) turns into "step 1 of 3 (1/3)", "step 2 of 3 (2/3)", "step 3 of 3 (3/3)" under the server's header.
-- **Inside the agent box, both status paths**: the `reportFunctionCalls: true` middleware's "Calling SearchDocs Tool" line, and the inner tool's own "Summarizing…" report, which flows out through the [in-process ambient flow](../agents.md#seeing-the-agents-own-function-calls) with no configuration at all. Neither creates a child box — the agent's inner pipeline is untracked, so no nested `ToolInvoking` scope opens; both surface as sub-statuses on the agent's scope. (The `Children`/`ParentScopeId` wiring earns its keep when a tool runs a [nested tracked pipeline](../architecture.md#the-ambient-scope-tree), whose tool calls do open child scopes.)
+- **Inside the agent box, both status paths**: the `reportFunctionCalls: true` middleware's "Calling SearchDocs Tool" line, and the inner tool's own "Summarizing…" report, which flows out through the [in-process ambient flow](../agents.md#seeing-the-agents-own-function-calls) with no configuration at all. Both surface as sub-statuses on the agent's scope because `SearchDocs` is a plain function tool — it has no scope of its own. Give the agent a `WithTracking`-wrapped tool instead — [another agent](../agents.md#nested-agents), or an [MCP tool](../mcp.md#nested-mcp-tools) — and that call **does** create a child box (since v0.3): the satellite wrapper opens a real child scope, so a nested `ToolInvoking` arrives with `ParentScopeId` set and the board's existing wiring nests it, no board changes required. The same `Children`/`ParentScopeId` wiring also handles a tool running a [nested tracked pipeline](../architecture.md#the-ambient-scope-tree), whose tool calls open child scopes too.
 
 One deliberate omission: **the board has no locking**, and it does not need any — for in-band consumption. The core's channel pump serializes every event into stream order, and the `await foreach` consumes them one at a time on a single logical flow, so `Apply` is never called concurrently. An out-of-band `IChatProgressObserver` feeding the same board **would** need synchronization: observers are invoked from multiple threads, including the MCP receive loop — see [Ordering and threading](../mcp.md#ordering-and-threading).
 
@@ -418,11 +418,11 @@ Condensed (the renderer reprints the board on every event; this is the two app-a
 ┌ Calling GetForecast Tool  [done in 0.2s]
 │   Contacting the forecast service…
 │   Crunching the numbers… (2/3)
-┌ Calling Andes Test MCP MCP  [done in 0.8s]
+┌ Calling Andes Test MCP  [done in 0.8s]
 │   step 1 of 3 (1/3)
 │   step 2 of 3 (2/3)
 │   step 3 of 3 (3/3)
-┌ Calling Research Agent Agent  [done in 2.1s]
+┌ Calling Research Agent  [done in 2.1s]
 │   Calling SearchDocs Tool
 │   Summarizing…
 A day in Quito: sunny all week, countdown complete, and the old town ...
@@ -437,7 +437,7 @@ Each box is separate, with its own title and its own subtitles — exactly the U
 - **MCP-bridged events can interleave.** Bridged `ToolProgress` notifications arrive from the MCP receive loop and are not ordered relative to request-path events — a notification can land anywhere between the tool's header and its completion. Harmless for the board in-band, but see [Ordering and threading](../mcp.md#ordering-and-threading) before adding observers.
 - **The agent's usage lands via `trackUsage: true`** (the default), which is correct here because the inner agent's pipeline is untracked. For a self-tracked agent, pass `trackUsage: false` or the tokens count twice — see [Avoid double counting](../agents.md#avoid-double-counting).
 - **Privacy invariant, unchanged.** Everything on the board is headers, statuses, and tool names — never prompt content, arguments, or results. The sole opt-in remains `ToolTrackingOptions.IncludeToolArguments` (default `false`) — see [Privacy posture](../architecture.md#privacy-posture).
-- **Non-invocable tools become boxes that never complete.** Tool declarations the pipeline cannot invoke get a [best-effort `ToolInvoking` header](../architecture.md#known-limitations-v02) parented to the root — the board shows them as root boxes stuck in `Running`, with no subtitles, duration, or completion. A production board may want a timeout-based visual state for those.
+- **Non-invocable tools become boxes that never complete.** Tool declarations the pipeline cannot invoke get a [best-effort `ToolInvoking` header](../architecture.md#known-limitations-v03) parented to the root — the board shows them as root boxes stuck in `Running`, with no subtitles, duration, or completion. A production board may want a timeout-based visual state for those.
 
 ## References
 
