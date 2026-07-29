@@ -31,7 +31,8 @@ Privacy invariant: progress events and reports never carry prompt content, tool 
 - `tests\Andes.Extensions.AI.Agent.Unit.Test\` — Agent satellite unit tests; no network. Links the core test infrastructure files; inner agents are real `ChatClientAgent`s built with `scriptedChatClient.AsAIAgent(...)`.
 - `tests\Andes.Extensions.AI.Agent.Integration.Test\` — Agent satellite Azure OpenAI tests; links `AzureOpenAIFixture.cs` and the shared gitignored `appsettings.integration.json`; the inner agent runs over a raw (untracked) chat client built from the fixture settings.
 - `tests\Andes.Extensions.AI.TestMcpServer\` — stdio MCP console server ("Andes Test MCP": `echo`, `add`, `count_down`) used by the MCP integration tests via `ProjectReference` + `dotnet <dll>`.
-- `docs\` — developer documentation (getting-started, architecture, mcp, agents).
+- `docs\` — developer documentation (getting-started, architecture, mcp, agents, ui).
+- `releases\` — per-release notes (`v{version}.md`, matching the release-tag convention); a new file is required for every version bump.
 - Build infrastructure: `Directory.Build.props` (warnings as errors, C# 14, deterministic builds, XML docs required), `Directory.Packages.props` (**central package management — all versions live here**), `global.json` (SDK pin), `.editorconfig` (style rules; `CA2007` is an error in the library, off in tests via `tests\.editorconfig`).
 
 ## Project-specific conventions
@@ -132,6 +133,7 @@ The full guidelines live in `.claude/rules/` and **load automatically when you e
 - **After implementing or modifying C# code**, delegate a quality review to the `csharp-code-reviewer` subagent. It reports findings; it does not edit files.
 - **After creating or modifying GitHub Actions workflow files** (`.github/workflows/*.yml` or composite actions), delegate a review to the `github-actions-reviewer` subagent. It reports findings; it does not edit files.
 - **When a new feature is implemented, or implementation details need documenting**, delegate to the `se-technical-writer` subagent to author or update Markdown docs under `docs/`.
+- **On every release change** (a version bump in the package csprojs or a new release tag), delegate to the `se-technical-writer` subagent to author `releases/v{version}.md` documenting what was added, changed, and fixed relative to the previous release. Every claim must trace to git history or current sources — never invent dates or features.
 
 ## Common commands
 

@@ -176,6 +176,7 @@ See the [sample README](samples/Andes.Extensions.AI.Demo/README.md) for what eac
 - [Example: the Progress Board — every tool kind in one stream](docs/examples/progress-board.md)
 - [Example: the UI contract, three ways](docs/examples/ui-contract.md)
 - [Sample: the interactive demo console app](samples/Andes.Extensions.AI.Demo/README.md)
+- [Release notes](releases/)
 
 ## License
 
