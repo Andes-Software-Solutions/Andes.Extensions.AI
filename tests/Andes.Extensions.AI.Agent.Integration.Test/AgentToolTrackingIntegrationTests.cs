@@ -19,19 +19,39 @@ public sealed class AgentToolTrackingIntegrationTests(AzureOpenAIFixture fixture
 
     private AIAgent CreateWeatherAgent()
     {
-        // The inner agent runs over a raw (untracked) chat client, so the only usage the outer
-        // pipeline can attribute to the agent tool comes from WithTracking's usage capture.
-        IChatClient rawClient = new AzureOpenAIClient(
-                new Uri(_fixture.Settings.Endpoint!),
-                new AzureKeyCredential(_fixture.Settings.ApiKey!))
-            .GetChatClient(_fixture.Settings.Deployment!)
-            .AsIChatClient();
-
-        return rawClient.AsAIAgent(
+        return CreateRawClient().AsAIAgent(
             instructions: "You answer questions about the weather using the GetWeather tool.",
             name: "Weather Agent",
             description: "Answers questions about the weather in a given city.",
             tools: [AIFunctionFactory.Create(GetWeather)]);
+    }
+
+    private AIAgent CreatePackingAgent()
+    {
+        return CreateRawClient().AsAIAgent(
+            instructions: "You suggest what to pack for a destination in one short sentence.",
+            name: "Packing Agent",
+            description: "Suggests what to pack for a destination.");
+    }
+
+    private AIAgent CreateResearchAgent()
+    {
+        return CreateRawClient().AsAIAgent(
+            instructions: "You research travel topics. Always call the Packing Agent tool once and base your answer on its reply.",
+            name: "Research Agent",
+            description: "Researches what to pack for a destination.",
+            tools: [CreatePackingAgent().WithTracking()]);
+    }
+
+    private IChatClient CreateRawClient()
+    {
+        // Inner agents run over raw (untracked) chat clients, so the only usage the outer
+        // pipeline can attribute to an agent tool comes from WithTracking's usage capture.
+        return new AzureOpenAIClient(
+                new Uri(_fixture.Settings.Endpoint!),
+                new AzureKeyCredential(_fixture.Settings.ApiKey!))
+            .GetChatClient(_fixture.Settings.Deployment!)
+            .AsIChatClient();
     }
 
     [SkippableFact]
@@ -96,6 +116,49 @@ public sealed class AgentToolTrackingIntegrationTests(AzureOpenAIFixture fixture
         Assert.True(
             observer.Report.TotalUsage.TotalTokenCount > observer.Report.AssistantUsage.TotalTokenCount,
             "The report total should exceed the assistant-only usage because the agent's usage is included.");
+    }
+
+    [SkippableFact]
+    public async Task GetStreamingResponseAsync_AgentToolInsideAgent_EmitsChildScopeWithUsage()
+    {
+        Skip.IfNot(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
+
+        var observer = new RecordingObserver();
+        IChatClient client = _fixture.CreatePipeline(options =>
+        {
+            options.UseAgentToolClassification();
+            options.Observers.Add(observer);
+        });
+
+        await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
+            [new ChatMessage(ChatRole.User, "Use the Research Agent tool to find out what to pack for Quito, then confirm.")],
+            new ChatOptions { Tools = [CreateResearchAgent().WithTracking()] }))
+        {
+        }
+
+        ChatProgressUpdate? childInvoking = observer.Updates.FirstOrDefault(update =>
+            update.Kind == ChatProgressKind.ToolInvoking && update.ToolName == "Packing_Agent");
+        Assert.NotNull(childInvoking);
+        Assert.Equal(ToolKind.Agent, childInvoking.ToolKind);
+        Assert.Equal("Packing Agent", childInvoking.ToolSource);
+        Assert.NotNull(childInvoking.ParentScopeId);
+        ChatProgressUpdate? parentInvoking = observer.Updates.FirstOrDefault(update =>
+            update.Kind == ChatProgressKind.ToolInvoking && update.ScopeId == childInvoking.ParentScopeId);
+        Assert.NotNull(parentInvoking);
+        Assert.Equal("Research_Agent", parentInvoking.ToolName);
+
+        Assert.NotNull(observer.Report);
+        ToolCallUsage? researchCall = observer.Report.ToolCalls.FirstOrDefault(call =>
+            call.ToolName == "Research_Agent" && call.Children.Any(child => child.ToolName == "Packing_Agent"));
+        Assert.NotNull(researchCall);
+        ToolCallUsage packingCall = researchCall.Children.First(child => child.ToolName == "Packing_Agent");
+        Assert.Equal(ToolKind.Agent, packingCall.Kind);
+        Assert.NotNull(packingCall.Usage);
+        Assert.True(packingCall.Usage.TotalTokenCount > 0, "The nested agent's run should attribute non-zero usage to its child scope.");
+        Assert.NotNull(researchCall.Usage);
+        Assert.True(
+            researchCall.Usage.TotalTokenCount > packingCall.Usage.TotalTokenCount,
+            "The parent agent's rollup should include its own usage on top of the nested agent's.");
     }
 
     private sealed class RecordingObserver : IChatProgressObserver

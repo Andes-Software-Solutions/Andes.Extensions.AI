@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Andes.Extensions.AI</RootNamespace>
     <PackageId>Andes.Extensions.AI.UI</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>Rodrigo Rojas</Authors>
     <Description>UI status contract for Andes.Extensions.AI tool tracking: serializable records (and a matching TypeScript interface) that project the tracked chat stream into an assistant-activity hierarchy — the assistant's own functions, MCP tools, and agents, each with sub-statuses, nested children, and token usage — for rendering live progress in Blazor, a console, or any TypeScript SPA.</Description>
     <PackageTags>AI;IChatClient;Microsoft.Extensions.AI;UI;Blazor;TypeScript;progress;streaming;middleware;tools</PackageTags>

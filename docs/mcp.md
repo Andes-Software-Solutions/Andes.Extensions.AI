@@ -16,7 +16,7 @@ This guide covers installation, how classification and the progress bridge work,
 dotnet add package Andes.Extensions.AI.Mcp
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.2.0) and [`ModelContextProtocol.Core`](https://www.nuget.org/packages/ModelContextProtocol.Core) (>= 1.4.1). Apps that build MCP clients or servers with the full `ModelContextProtocol` package are unaffected — the satellite only needs the Core types.
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.3.0) and [`ModelContextProtocol.Core`](https://www.nuget.org/packages/ModelContextProtocol.Core) (>= 1.4.1). Apps that build MCP clients or servers with the full `ModelContextProtocol` package are unaffected — the satellite only needs the Core types.
 
 ## Quickstart
 
@@ -122,6 +122,10 @@ Bridging is independent of classification: a `WithTracking` wrapper in a pipelin
 
 Bridged `ToolProgress` events arrive on a different thread than the request path and are **not ordered** relative to request-path events: a notification can interleave anywhere between the tool's `ToolInvoking` header and its `ToolCompleted` event. `IChatProgressObserver` implementations must be thread-safe — already the documented observer contract. Notifications are also fire-and-forget on the server side and race the tool result, so a late notification arriving as the request completes is dropped best-effort: the in-band write to the completed channel is a no-op, though an observer may still see one late event. Real progress-reporting tools are long-running, so the race is invisible in practice.
 
+## Nested MCP tools
+
+Since v0.3, a `WithTracking` wrapper invoked while another tool's scope is ambient — an MCP tool given to an agent as one of its tools, or invoked directly inside a plain tool's body — opens its **own child scope** (via the core's [`ChatProgress.BeginToolScope`](architecture.md#the-ambient-scope-tree)) instead of surfacing flat on the enclosing tool: the call renders live as its own child activity (`ToolInvoking` with `ParentScopeId`/`Depth`, completion, duration) and lands as a child `ToolCallUsage` under the enclosing call in the report. The wrapper opens the child scope **before** capturing the reporter, so the [progress bridge](#how-the-progress-bridge-works) binds to the child — bridged notifications land under the nested tool's own header, not the enclosing tool's. When the tracking middleware wrapped the function itself (the normal top-level registration), the owner check makes the call an inactive no-op — exactly one scope, the pre-v0.3 behavior. A nested call invoked directly from a tool body carries a `null` `CallId` (there is no function-invoking loop for the wrapper to correlate with); an agent's own invocation loop calling the tool supplies its call id.
+
 ## Numeric progress values
 
 Core v0.2 adds two optional fields to `ChatProgressUpdate`, populated only on `ToolProgress` events whose reporter supplied values:
@@ -160,7 +164,7 @@ Unchanged from the core: progress events and reports **never carry prompt conten
 
 Three test projects exercise the package against real MCP plumbing — the protocol is never mocked:
 
-- `tests\Andes.Extensions.AI.Mcp.Unit.Test` — no network or child processes: the `Infrastructure\InMemoryMcpFixture` hosts a genuine MCP client/server pair over in-process pipe streams, so tests classify and invoke real `McpClientTool` instances and observe real bridged notifications (including the synthesized-message fallback and the completion race).
+- `tests\Andes.Extensions.AI.Mcp.Unit.Test` — no network or child processes: the `Infrastructure\InMemoryMcpFixture` hosts a genuine MCP client/server pair over in-process pipe streams, so tests classify and invoke real `McpClientTool` instances and observe real bridged notifications (including the synthesized-message fallback, the completion race, and — `NestedMcpScopeTests` — child scopes with the bridge bound to them).
 - `tests\Andes.Extensions.AI.TestMcpServer` — a runnable stdio MCP server ("Andes Test MCP") with three deterministic tools: `echo`, `add`, and `count_down`, which reports one progress notification per step. Useful for manual experiments as well as the integration tests.
 - `tests\Andes.Extensions.AI.Mcp.Integration.Test` — drives a real Azure OpenAI deployment against the stdio test server, end to end through the tracked pipeline. Tests are `[SkippableFact]` and skip cleanly when configuration is missing. The project **links the same gitignored `appsettings.integration.json`** as `tests\Andes.Extensions.AI.Integration.Test` — configure it once (copy the `.sample` file, fill in the `AzureOpenAI` section) and both integration projects pick it up. Never environment variables.
 

@@ -47,6 +47,8 @@ await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync("pr
 
 `WithTracking` carries the agent identity used for classification and attributes each run's usage to the calling tool's scope. Pass `trackUsage: false` when the agent's own chat pipeline uses `UseToolTracking()` — the nested pipeline already rolls its total usage up, and reporting `AgentResponse.Usage` on top would double-count. Pass `reportFunctionCalls: true` to additionally report a `"Calling {Function} Tool"` status each time the agent invokes one of its function tools (local function-invoking agents only; names only).
 
+Nested agents render as their own activity: when a `WithTracking`-wrapped agent is a tool of another agent, or is invoked directly inside a tool body, the wrapper opens a child tracking scope — the run streams as a child activity under the enclosing tool (`ParentScopeId`/`Depth` on its progress events) and lands as a child `ToolCallUsage` with its own usage and duration in the `ChatUsageReport`. A tool the tracking middleware wrapped itself still opens exactly one scope, and report totals are unchanged either way.
+
 ## Notes
 
 - A function created by a plain `agent.AsAIFunction()` call exposes neither its agent nor its usage; without `WithTracking` it classifies as a regular function tool. The same applies to agents hidden inside your own `DelegatingAIFunction` wrappers, which this package never unwraps or bypasses.

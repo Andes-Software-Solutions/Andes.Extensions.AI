@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Andes.Extensions.AI</RootNamespace>
     <PackageId>Andes.Extensions.AI.Agent</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>Rodrigo Rojas</Authors>
     <Description>Microsoft Agent Framework support for Andes.Extensions.AI tool tracking: classifies agents exposed as function tools as agent tools ("Calling {Agent} Agent"), attributes each agent run's token usage to the calling tool's scope, and optionally reports the agent's own function invocations as progress statuses.</Description>
     <PackageTags>AI;IChatClient;Microsoft.Extensions.AI;AgentFramework;Microsoft.Agents.AI;agents;middleware;progress;tools</PackageTags>

@@ -42,20 +42,28 @@ IChatClient client = new AzureOpenAIClient(
     .UseFunctionInvocation()
     .Build();
 
+// The Packing Agent is shared by both nesting scenarios: as a tool of the Research Agent
+// (agent inside agent) and invoked inside the PlanTrip tool body (agent inside a function).
+// Either way it opens its own child scope and renders as a nested activity card.
+AIFunction packingAgent = DemoAgents.CreatePackingAgent(settings).WithTracking();
+
 // No Temperature: reasoning-model deployments reject non-default values.
 var chatOptions = new ChatOptions
 {
     Tools =
     [
         AIFunctionFactory.Create(DemoTools.GetWeather),
+        DemoTools.CreatePlanTrip(packingAgent),
         .. mcp.Tools.WithTracking(mcp.Client),
-        DemoAgents.CreateResearchAgent(settings).WithTracking(reportFunctionCalls: true),
+        DemoAgents.CreateResearchAgent(settings, packingAgent).WithTracking(reportFunctionCalls: true),
     ],
 };
 
 AnsiConsole.Write(new Rule("[bold]Andes.Extensions.AI[/] [dim]demo[/]").LeftJustified());
 AnsiConsole.MarkupLine("[dim]A tracked IChatClient pipeline rendered live from Andes.Extensions.AI.UI snapshots.[/]");
-AnsiConsole.MarkupLine("[dim]Try:[/] [italic]Get the weather in Quito, the 5-day forecast, and ask the Research Agent what to pack.[/]");
+AnsiConsole.MarkupLine("[dim]Try:[/]  [italic]Get the weather in Quito and the 5-day forecast.[/]");
+AnsiConsole.MarkupLine("[dim]     [/] [italic]Ask the Research Agent what to pack for Quito.[/] [dim](agent nested in an agent)[/]");
+AnsiConsole.MarkupLine("[dim]     [/] [italic]Plan a trip to Cusco.[/] [dim](agent nested in a plain tool)[/]");
 AnsiConsole.MarkupLine("[dim]Press Enter on an empty line (or type 'exit') to quit.[/]");
 AnsiConsole.WriteLine();
 
@@ -63,7 +71,7 @@ List<ChatMessage> history = [];
 
 while (true)
 {
-    string prompt = AnsiConsole.Prompt(new TextPrompt<string>("[bold green]›[/]").AllowEmpty());
+    string prompt = ReadPrompt();
     if (string.IsNullOrWhiteSpace(prompt) || prompt.Trim().ToLowerInvariant() is "exit" or "quit")
     {
         break;
@@ -86,29 +94,47 @@ while (true)
     }
 
     AssistantStatusSnapshot? last = null;
+
+    // Snapshots arrive per text delta; throttle redraws to stay flicker-free.
+    async Task ConsumeAsync(Action<AssistantStatusSnapshot>? render)
+    {
+        var throttle = Stopwatch.StartNew();
+        await foreach (AssistantStatusSnapshot snapshot in StreamTurn().ToStatusSnapshotsAsync())
+        {
+            last = snapshot;
+            if (render is not null && throttle.ElapsedMilliseconds >= 80)
+            {
+                render(snapshot);
+                throttle.Restart();
+            }
+        }
+    }
+
     try
     {
-        await AnsiConsole.Live(Text.Empty)
-            .AutoClear(true)
-            .Overflow(VerticalOverflow.Ellipsis)
-            .StartAsync(async context =>
-            {
-                // Snapshots arrive per text delta; throttle redraws to stay flicker-free.
-                var throttle = Stopwatch.StartNew();
-                await foreach (AssistantStatusSnapshot snapshot in StreamTurn().ToStatusSnapshotsAsync())
-                {
-                    last = snapshot;
-                    if (throttle.ElapsedMilliseconds >= 80)
-                    {
-                        context.UpdateTarget(StatusRenderer.RenderLive(snapshot));
-                        throttle.Restart();
-                    }
-                }
-            });
-
-        if (last is not null)
+        if (AnsiConsole.Profile.Capabilities.Interactive)
         {
-            AnsiConsole.Write(StatusRenderer.RenderFinal(last));
+            await AnsiConsole.Live(Text.Empty)
+                .AutoClear(true)
+                .Overflow(VerticalOverflow.Ellipsis)
+                .StartAsync(context => ConsumeAsync(snapshot => context.UpdateTarget(StatusRenderer.RenderLive(snapshot))));
+        }
+        else
+        {
+            // Redirected output (scripts, CI): the Live region needs a real terminal, so only
+            // the persistent final frame below is rendered.
+            await ConsumeAsync(render: null);
+        }
+
+        // The final frame renders the report-derived tree (per-activity tokens live only there)
+        // merged with the live snapshot's text and sub-statuses.
+        ChatUsageReport? report = updates
+            .SelectMany(update => update.Contents)
+            .OfType<UsageReportContent>()
+            .FirstOrDefault()?.Report;
+        if (FinalSnapshot.Merge(report, last) is { } final)
+        {
+            AnsiConsole.Write(StatusRenderer.RenderFinal(final));
         }
 
         // Strip in-band progress/usage content before it re-enters the next request.
@@ -121,4 +147,17 @@ while (true)
     }
 
     AnsiConsole.WriteLine();
+}
+
+static string ReadPrompt()
+{
+    if (AnsiConsole.Profile.Capabilities.Interactive)
+    {
+        return AnsiConsole.Prompt(new TextPrompt<string>("[bold green]›[/]").AllowEmpty());
+    }
+
+    // Piped or redirected input (scripts, CI): Spectre's interactive prompt would throw,
+    // so fall back to plain line reading. Null at end-of-input exits the loop.
+    AnsiConsole.Markup("[bold green]›[/] ");
+    return Console.ReadLine() ?? string.Empty;
 }

@@ -61,6 +61,81 @@ public static class ChatProgress
     }
 
     /// <summary>
+    /// Opens a nested tool-call scope on the ambient tracker, so that the operation renders as its
+    /// own child activity beneath the currently executing tool and any usage reported inside it
+    /// (via <see cref="ReportUsage"/>) is attributed to the child in the final <see cref="ChatUsageReport"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Returns an inactive handle (a safe no-op) when no tracked request is active, or when the
+    /// ambient scope was already opened for <paramref name="owner"/> — the case where the tracking
+    /// middleware wrapped the function itself — which prevents a duplicate scope for the same
+    /// invocation. Nested scopes never carry tool arguments.
+    /// </para>
+    /// <para>
+    /// This method is deliberately not exposed on <see cref="IChatProgressReporter"/>: a captured
+    /// reporter may be invoked off the original async flow (for example, an MCP receive loop),
+    /// where pushing an ambient scope would have no effect. Dispose the returned handle on the
+    /// same async flow that opened it.
+    /// </para>
+    /// </remarks>
+    /// <param name="descriptor">Describes how the nested activity is classified and displayed.
+    /// The ambient tracker's <see cref="ToolTrackingOptions.HeaderFormatter"/> applies to the
+    /// header; its <see cref="ToolTrackingOptions.ToolClassifier"/> does not.</param>
+    /// <param name="owner">The function opening the scope, used to suppress a duplicate scope when
+    /// the tracker already opened one for this invocation and to correlate the scope with the
+    /// model's function call. Pass <see langword="null"/> to always open a scope.</param>
+    /// <returns>A handle that completes the scope when disposed; never <see langword="null"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="descriptor"/> is <see langword="null"/>.</exception>
+    /// <example>
+    /// <code language="csharp">
+    /// using ChatProgressToolScope scope = ChatProgress.BeginToolScope(
+    ///     new ToolDescriptor { Name = "summarize", DisplayName = "Summarizer", Kind = ToolKind.Agent });
+    /// try
+    /// {
+    ///     ChatProgress.Report("Condensing findings…");
+    ///     // ... nested work ...
+    /// }
+    /// catch
+    /// {
+    ///     scope.Fail();
+    ///     throw;
+    /// }
+    /// </code>
+    /// </example>
+    public static ChatProgressToolScope BeginToolScope(ToolDescriptor descriptor, AIFunction? owner = null)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+
+        if (AmbientScope.Current is not { } ambient)
+        {
+            return ChatProgressToolScope.Inactive;
+        }
+
+        if (owner is not null && ambient.IsOwnedBy(owner))
+        {
+            return ChatProgressToolScope.Inactive;
+        }
+
+        // The function-invocation call id is trusted only when the current invocation context is
+        // for the owner itself (a nested function-invoking loop); otherwise the context still
+        // describes the enclosing tool's call and would mis-correlate the child.
+        string? callId = null;
+        if (owner is not null
+            && FunctionInvokingChatClient.CurrentContext is { } context
+            && ReferenceEquals(context.Function, owner))
+        {
+            callId = context.CallContent.CallId;
+        }
+
+        RequestTracker tracker = ambient.Tracker;
+        ToolScope scope = tracker.BeginToolScope(descriptor, callId, ambient, arguments: null, owner);
+        long startTimestamp = tracker.Options.TimeProvider.GetTimestamp();
+        AmbientScope.ScopeRestorer restorer = AmbientScope.Push(scope);
+        return new ChatProgressToolScope(scope, restorer, startTimestamp);
+    }
+
+    /// <summary>
     /// Attributes token usage (for example, from a nested SDK or agent call made inside the tool)
     /// to the currently executing tool's scope.
     /// </summary>

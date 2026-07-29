@@ -16,7 +16,7 @@ This guide covers installation, the two DTO layers, the mapper and reducer, the 
 dotnet add package Andes.Extensions.AI.UI
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.2.0) and `Microsoft.Extensions.AI.Abstractions` — nothing else. The package does not reference the [MCP](mcp.md) or [Agent](agents.md) satellites; it doesn't need to, because `ToolKind` (the `Unknown`/`Function`/`McpTool`/`Agent` badge every activity carries) already lives in core, shared by every satellite.
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.3.0) and `Microsoft.Extensions.AI.Abstractions` — nothing else. The package does not reference the [MCP](mcp.md) or [Agent](agents.md) satellites; it doesn't need to, because `ToolKind` (the `Unknown`/`Function`/`McpTool`/`Agent` badge every activity carries) already lives in core, shared by every satellite.
 
 ## Quickstart
 
@@ -93,7 +93,7 @@ public sealed record AssistantActivity
 }
 ```
 
-`Children` is what makes the tree recursive: an agent activity's own tool calls, or a nested tracked pipeline's tool calls (see [Architecture: the ambient scope tree](architecture.md#the-ambient-scope-tree)), appear as child `AssistantActivity` values under the parent card — a UI renders them with the same component, one level deeper, with no special-casing.
+`Children` is what makes the tree recursive, and as of v0.3 it fills **live**: the [MCP](mcp.md#nested-mcp-tools) and [Agent](agents.md#nested-agents) satellite wrappers open a real child scope when invoked inside another tool, so a nested agent or MCP tool streams in as a child `AssistantActivity` under the enclosing card while it runs — as do a nested tracked pipeline's tool calls and any child scope a tool opens itself with `ChatProgress.BeginToolScope` (see [Architecture: the ambient scope tree](architecture.md#the-ambient-scope-tree)). This package needed zero changes for that: the reducer has always attached activities by `ParentScopeId`, whoever opens the scope. A UI renders children with the same component, one level deeper, with no special-casing.
 
 `SubStatus` (`Message`, `Progress`, `ProgressTotal`) and `UsageSummary` (`InputTokens`, `OutputTokens`, `TotalTokens`, all nullable) are small, flat leaf records — `UsageSummary` is `Microsoft.Extensions.AI.UsageDetails` flattened to primitives so it serializes without pulling that type's shape into the wire contract.
 
@@ -109,7 +109,7 @@ Four static members turn the tracked, in-band stream into the contract:
 | `ToUsageSummary(this UsageDetails)` | A core usage value | The flattened `UsageSummary` |
 | `ToSnapshot(this ChatUsageReport)` | A completed usage report (for example the non-streaming `ChatResponse.AdditionalProperties` report) | A `Completed`-phase snapshot built directly from the report's `ToolCalls` tree — useful when all you have is the final report, not the live stream |
 
-The mapper is where the clean-name design lives: `ToUiEvent` sets `DisplayName = update.ToolSource ?? update.ToolName` — the raw server/agent/function name — never `update.Message`, which is the *composed* header text ("Calling GetWeather Tool", "Calling Andes Test MCP"). `ToSnapshot`'s `ToActivity` helper does the same from a `ToolCallUsage`: `DisplayName = call.Source ?? call.ToolName`. See [Clean names, not composed headers](#clean-names-not-composed-headers) for why this matters.
+The mapper is where the clean-name design lives: `ToUiEvent` sets `DisplayName = update.ToolSource ?? update.ToolName` — the raw server/agent/function name — never `update.Message`, which is the *composed* header text ("Calling GetWeather Tool", "Calling Andes Test MCP"). `ToSnapshot`'s `ToActivity` helper does the same from a `ToolCallUsage`: `DisplayName = call.Source ?? call.ToolName`. It also recurses `ToolCallUsage.Children`, so nested activities — including the v0.3 satellite child scopes — arrive with their own per-node `Usage`, matching the live tree's shape. See [Clean names, not composed headers](#clean-names-not-composed-headers) for why this matters.
 
 ## The reducer: `AssistantStatusReducer`
 

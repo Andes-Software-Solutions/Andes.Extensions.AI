@@ -7,27 +7,42 @@ using Microsoft.Extensions.AI;
 namespace Andes.Extensions.AI.Demo;
 
 /// <summary>
-/// Agent-as-tool showcasing the Agent satellite: the agent is exposed to the outer pipeline
-/// via <c>WithTracking</c>, which attributes the agent run's token usage to its tool scope.
+/// Agents-as-tools showcasing the Agent satellite: each agent is exposed via <c>WithTracking</c>,
+/// which attributes its run's token usage to its own tracking scope. The Packing Agent nests
+/// inside the Research Agent (and inside the PlanTrip tool), rendering as a child activity card.
 /// </summary>
 internal static class DemoAgents
 {
-    public static AIAgent CreateResearchAgent(AzureOpenAISettings settings)
+    public static AIAgent CreateResearchAgent(AzureOpenAISettings settings, AIFunction packingAgent)
     {
-        // The inner agent runs over a raw (untracked) chat client: the outer pipeline
-        // attributes the agent's usage via WithTracking's usage capture (trackUsage: true
-        // default); a tracked inner pipeline would double-count the same tokens.
-        IChatClient rawClient = new AzureOpenAIClient(
+        return CreateRawClient(settings).AsAIAgent(
+            instructions: "You are a travel researcher. Answer briefly. Use the SearchNotes tool " +
+                          "for destination facts and consult the Packing Agent tool for packing advice.",
+            name: "Research Agent",
+            description: "Researches travel topics, such as what to pack for a destination, and summarizes findings.",
+            tools: [AIFunctionFactory.Create(SearchNotes), packingAgent]);
+    }
+
+    public static AIAgent CreatePackingAgent(AzureOpenAISettings settings)
+    {
+        return CreateRawClient(settings).AsAIAgent(
+            instructions: "You suggest what to pack for a destination. Use the CheckEssentials tool, " +
+                          "then answer in one short sentence.",
+            name: "Packing Agent",
+            description: "Suggests what to pack for a destination.",
+            tools: [AIFunctionFactory.Create(CheckEssentials)]);
+    }
+
+    private static IChatClient CreateRawClient(AzureOpenAISettings settings)
+    {
+        // Inner agents run over raw (untracked) chat clients: the outer pipeline attributes each
+        // agent's usage via WithTracking's usage capture (trackUsage: true default); a tracked
+        // inner pipeline would double-count the same tokens.
+        return new AzureOpenAIClient(
                 new Uri(settings.Endpoint!),
                 new AzureKeyCredential(settings.ApiKey!))
             .GetChatClient(settings.Deployment!)
             .AsIChatClient();
-
-        return rawClient.AsAIAgent(
-            instructions: "You are a travel researcher. Answer briefly, using the SearchNotes tool when helpful.",
-            name: "Research Agent",
-            description: "Researches travel topics, such as what to pack for a destination, and summarizes findings.",
-            tools: [AIFunctionFactory.Create(SearchNotes)]);
     }
 
     [Description("Searches the travel notes knowledge base for a topic.")]
@@ -38,5 +53,12 @@ internal static class DemoAgents
         // progress events never carry tool arguments unless explicitly opted in.
         ChatProgress.Report("Searching notes…");
         return $"Notes on {topic}: pack layers, sunscreen, and a rain shell; altitude 2,850m.";
+    }
+
+    [Description("Checks the packing essentials list for a destination type.")]
+    private static string CheckEssentials([Description("The destination type, such as mountain, beach, or city.")] string destinationType)
+    {
+        ChatProgress.Report("Checking essentials…");
+        return $"Essentials for {destinationType}: layers, sunscreen, a rain shell, and comfortable shoes.";
     }
 }

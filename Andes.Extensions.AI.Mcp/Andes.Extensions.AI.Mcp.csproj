@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Andes.Extensions.AI</RootNamespace>
     <PackageId>Andes.Extensions.AI.Mcp</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>Rodrigo Rojas</Authors>
     <Description>Model Context Protocol (MCP) support for Andes.Extensions.AI tool tracking: classifies McpClientTool instances as MCP tools ("Calling {Server} MCP") and bridges MCP progress notifications into chat progress updates with numeric progress values.</Description>
     <PackageTags>AI;IChatClient;Microsoft.Extensions.AI;MCP;ModelContextProtocol;middleware;progress;tools</PackageTags>

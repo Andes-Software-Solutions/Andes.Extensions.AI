@@ -73,10 +73,11 @@ internal sealed class RequestTracker
         ToolDescriptor descriptor,
         string? callId,
         ToolScope? parent,
-        IReadOnlyDictionary<string, string>? arguments)
+        IReadOnlyDictionary<string, string>? arguments,
+        AIFunction? owner = null)
     {
         ToolScope effectiveParent = parent ?? RootScope;
-        var scope = new ToolScope(this, NextScopeId(), effectiveParent, descriptor, callId, effectiveParent.Depth + 1);
+        var scope = new ToolScope(this, NextScopeId(), effectiveParent, descriptor, callId, effectiveParent.Depth + 1, owner);
         effectiveParent.AddChild(scope);
         Emit(new ChatProgressUpdate
         {

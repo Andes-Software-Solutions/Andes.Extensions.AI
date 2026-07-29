@@ -115,6 +115,19 @@ IChatClient client = innerClient
 var chatOptions = new ChatOptions { Tools = [weatherAgent.WithTracking()] };
 ```
 
+Agents nest (v0.3): a `WithTracking`-wrapped agent used as a tool of another agent — or invoked directly inside a tool body — opens its own child scope, rendering live as a child activity card with its own statuses, duration, and token usage in the report:
+
+```text
+✓ Research Agent  agent  6.0s · 1,317 tok
+  ├── Calling SearchNotes Tool
+  ├── Searching notes…
+  ├── Calling Packing_Agent Tool
+  └── ✓ Packing Agent  agent  2.4s · 504 tok
+      └── Checking essentials…
+```
+
+The same applies to nested MCP tools, and any tool can give a sub-operation its own child card with `ChatProgress.BeginToolScope(new ToolDescriptor { ... })`.
+
 See [Agent support](docs/agents.md) for details.
 
 ## UI

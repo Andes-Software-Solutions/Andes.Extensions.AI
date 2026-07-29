@@ -12,7 +12,8 @@ internal sealed class ToolScope(
     ToolScope? parent,
     ToolDescriptor? descriptor,
     string? callId,
-    int depth)
+    int depth,
+    AIFunction? owner = null)
 {
     private readonly Lock _lock = new();
     private readonly List<ToolScope> _children = [];
@@ -32,6 +33,24 @@ internal sealed class ToolScope(
     public string? CallId { get; } = callId;
 
     public int Depth { get; } = depth;
+
+    /// <summary>
+    /// Gets the function this scope was opened for (the unwrapped tool the tracker delegated to),
+    /// or <see langword="null"/> for the request root and for scopes with no known owner.
+    /// </summary>
+    public AIFunction? Owner { get; } = owner;
+
+    /// <summary>
+    /// Determines whether this scope was opened for <paramref name="candidate"/>, either directly
+    /// or behind a user's <see cref="DelegatingAIFunction"/> chain (probed via
+    /// <see cref="AITool.GetService(Type, object?)"/>, the same convention the classifiers use).
+    /// </summary>
+    public bool IsOwnedBy(AIFunction candidate)
+    {
+        return Owner is { } owner
+            && (ReferenceEquals(owner, candidate)
+                || ReferenceEquals(owner.GetService(candidate.GetType()), candidate));
+    }
 
     public TimeSpan Duration { get; set; }
 

@@ -23,7 +23,9 @@ internal sealed class TrackingAIFunction : DelegatingAIFunction
     {
         string? callId = FunctionInvokingChatClient.CurrentContext?.CallContent.CallId;
         ToolScope parent = AmbientScope.Current ?? _tracker.RootScope;
-        ToolScope scope = _tracker.BeginToolScope(_descriptor, callId, parent, CaptureArguments(arguments));
+        // The unwrapped function is recorded as the scope's owner so a satellite wrapper invoking
+        // ChatProgress.BeginToolScope for the same invocation is deduplicated to a single scope.
+        ToolScope scope = _tracker.BeginToolScope(_descriptor, callId, parent, CaptureArguments(arguments), InnerFunction);
         long startTimestamp = _tracker.Options.TimeProvider.GetTimestamp();
         using AmbientScope.ScopeRestorer restorer = AmbientScope.Push(scope);
         try

@@ -7,7 +7,7 @@
 
 A third capability is opt-in: reporting the agent's own function calls as progress statuses — see [Seeing the agent's own function calls](#seeing-the-agents-own-function-calls).
 
-This guide covers installation, how classification and usage capture work, the double-count interaction with nested tracked pipelines, and the package's deliberate limits. For the core middleware's design, see [Architecture](architecture.md); for core usage, see [Getting started](getting-started.md).
+This guide covers installation, how classification and usage capture work, the double-count interaction with nested tracked pipelines, [nested agents](#nested-agents) (agents inside agents or inside tool bodies, rendering as child activities since v0.3), and the package's deliberate limits. For the core middleware's design, see [Architecture](architecture.md); for core usage, see [Getting started](getting-started.md).
 
 ## Prerequisites and installation
 
@@ -18,7 +18,7 @@ This guide covers installation, how classification and usage capture work, the d
 dotnet add package Andes.Extensions.AI.Agent
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.2.0) and [`Microsoft.Agents.AI`](https://www.nuget.org/packages/Microsoft.Agents.AI) (>= 1.15.0, stable).
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.3.0) and [`Microsoft.Agents.AI`](https://www.nuget.org/packages/Microsoft.Agents.AI) (>= 1.15.0, stable).
 
 ## Quickstart
 
@@ -133,6 +133,58 @@ The outer model only ever sees the agent's final text — [by design](https://le
 
 The opt-in has a constraint, which is why it defaults to `false`: function-invocation middleware requires an agent whose pipeline performs **local** function invocation, such as a `ChatClientAgent` over an `IChatClient`. Hosted, service-side agents (Foundry agents, for example) run their tools server-side, and the framework throws `InvalidOperationException` when the middleware cannot find a `FunctionInvokingChatClient` to intercept.
 
+Both paths surface **sub-statuses on the agent's scope** — plain function tools the agent invokes get no scope of their own. A tool that is itself a `WithTracking`-wrapped agent is different: it opens its own child scope and renders as a nested activity — see [Nested agents](#nested-agents).
+
+## Nested agents
+
+An agent does not have to be a top-level tool. Since v0.3, a `WithTracking` wrapper invoked while another tool's scope is ambient opens its **own child scope** (via the core's [`ChatProgress.BeginToolScope`](architecture.md#the-ambient-scope-tree)): the nested run renders live as its own child activity — a `ToolInvoking` header carrying `ParentScopeId`/`Depth`, its own sub-statuses, completion, and duration — and lands as a child `ToolCallUsage` (with its own usage, duration, and `Succeeded` flag) under the enclosing call in the `ChatUsageReport`. Previously such a run surfaced only flat: sub-statuses and usage on the enclosing tool's scope. Two shapes reach this path:
+
+**A — an agent as a tool of another agent.** The inner agent is registered as a tool of the outer agent, whose own function-invocation loop calls the wrapped function. Because `FunctionInvokingChatClient.CurrentContext` then describes the wrapper itself, the child scope is correlated with the **inner loop's function-call id** — `CallId` on the child's events is the inner model's call id.
+
+```csharp
+AIFunction packing = packingAgent.WithTracking();
+AIAgent research = researchClient.AsAIAgent(
+    instructions: "You research travel topics. Consult the Packing Agent tool for packing advice.",
+    name: "Research Agent",
+    tools: [AIFunctionFactory.Create(SearchNotes), packing]);
+
+var chatOptions = new ChatOptions { Tools = [research.WithTracking(reportFunctionCalls: true)] };
+```
+
+```text
+  [ToolInvoking] Calling Research Agent
+    [ToolProgress] Calling SearchNotes Tool
+    [ToolProgress] Searching notes…
+    [ToolProgress] Calling Packing_Agent Tool
+    [ToolInvoking] Calling Packing Agent          ← child scope, CallId = inner loop's call id
+      [ToolProgress] Checking essentials…
+    [ToolCompleted] Packing Agent completed
+  [ToolCompleted] Research Agent completed
+```
+
+With `reportFunctionCalls: true` on the parent, **both** lines appear for the nested agent: the `"Calling Packing_Agent Tool"` sub-status (the middleware reporting the outer agent's function call, on the parent's scope) and the child card (the wrapper's own scope). They are complementary, not duplicates — turn off `reportFunctionCalls` to keep only the card.
+
+**B — an agent invoked directly inside a tool body.** User code calls the wrapped function itself from inside a plain function tool. There is no inner invocation loop for the wrapper, and the enclosing tool's `CurrentContext` would mis-correlate the child, so the child's `CallId` is **`null`** — the tree wiring (`ParentScopeId`/`Depth`) and usage attribution are unaffected.
+
+```csharp
+AIFunction planTrip = AIFunctionFactory.Create(
+    async (string city, CancellationToken cancellationToken) =>
+    {
+        object? advice = await packing.InvokeAsync(
+            new AIFunctionArguments { ["query"] = $"What should I pack for {city}?" },
+            cancellationToken);
+        return $"Trip plan for {city}. Packing advice: {advice}";
+    },
+    "PlanTrip");
+```
+
+The mechanics, in both shapes:
+
+- **Exactly one scope per invocation.** When the tracking middleware itself wrapped the function — the normal top-level registration on `ChatOptions.Tools` — the scope the tracker opened records the wrapper as its owner, and the wrapper's own `BeginToolScope` call is an inactive no-op (an owner-identity check that also traverses user `DelegatingAIFunction` chains via the `GetService` probe). Top-level behavior is byte-for-byte what it was before v0.3.
+- **The [`trackUsage` matrix](#avoid-double-counting) is unchanged — it now applies at the child scope.** With the default `trackUsage: true` and an untracked inner pipeline, `AgentResponse.Usage` is attributed to the **child's** `ToolCallUsage`; with `trackUsage: false` and an untracked pipeline the child appears with `Usage = null`; a self-tracked inner pipeline rolls up into the child. Report totals are numerically invariant either way: the parent's rollup has always included its children, so `TotalUsage` and the parent's `Usage` match the old flat attribution exactly.
+- **A failed nested run marks the child failed.** The child scope emits `ToolFailed` and its `ToolCallUsage.Succeeded` is `false`, while the enclosing tool decides for itself whether to catch and succeed. No exception details are recorded — the privacy invariant is unchanged.
+- **Recursive self-invocation stays flat.** The same wrapped function invoked from within its own run is indistinguishable from the tracker's own delegation (same owner), so no child scope opens — a [known limitation](architecture.md#known-limitations-v03).
+
 ## Wrappers and limits
 
 Classification requires the `WithTracking` wrapper. With `UseAgentToolClassification()` installed, the combinations are:
@@ -154,7 +206,7 @@ Unchanged from the core: progress events and reports **never carry prompt conten
 
 Two test projects exercise the package against the real Agent Framework — the agent plumbing is never mocked:
 
-- `tests\Andes.Extensions.AI.Agent.Unit.Test` — no network: inner agents are real `ChatClientAgent`s built with `scriptedChatClient.AsAIAgent(...)` over the linked `ScriptedChatClient` fake, driven end to end through the real tracked pipeline. The 20 tests cover classification and header rendering, usage attribution in both double-count directions, function-call reporting, and the in-process ambient flow that carries tool statuses out of the agent.
+- `tests\Andes.Extensions.AI.Agent.Unit.Test` — no network: inner agents are real `ChatClientAgent`s built with `scriptedChatClient.AsAIAgent(...)` over the linked `ScriptedChatClient` fake, driven end to end through the real tracked pipeline. The 28 tests cover classification and header rendering, usage attribution in both double-count directions, function-call reporting, the in-process ambient flow that carries tool statuses out of the agent, and nested child scopes in both shapes (`NestedAgentScopeTests`: agent-inside-agent with the inner call id, direct invocation with a `null` call id, single-scope dedup, child failure, and the `trackUsage: false` child).
 - `tests\Andes.Extensions.AI.Agent.Integration.Test` — drives a real Azure OpenAI deployment with an agent as a tracked tool, end to end. Tests are `[SkippableFact]` and skip cleanly when configuration is missing. The project **links the same gitignored `appsettings.integration.json`** as the other integration projects — configure it once (copy the `.sample` file, fill in the `AzureOpenAI` section) and every integration project picks it up. Never environment variables.
 
 ```shell
