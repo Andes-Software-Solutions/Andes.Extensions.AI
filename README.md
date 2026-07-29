@@ -141,6 +141,18 @@ await foreach (AssistantStatusSnapshot snapshot in client
 
 For an HTTP surface, stream `ToUiEventsAsync()` instead and serialize each event with the package's `AssistantUiJsonContext` over server-sent events; a browser or Blazor client folds them with the shipped TypeScript `foldAssistantEvents` or the C# `AssistantStatusReducer`. See [UI support](docs/ui.md) for details.
 
+## Samples
+
+`samples/Andes.Extensions.AI.Demo` is an interactive console chat that exercises all four packages in one tracked pipeline and renders live activity — function/MCP/agent cards, progress bars, token usage — Claude-Code-style with Spectre.Console:
+
+```bash
+cp samples/Andes.Extensions.AI.Demo/appsettings.sample.json samples/Andes.Extensions.AI.Demo/appsettings.json
+# fill in the AzureOpenAI section, then:
+dotnet run --project samples/Andes.Extensions.AI.Demo
+```
+
+See the [sample README](samples/Andes.Extensions.AI.Demo/README.md) for what each file demonstrates.
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
@@ -150,6 +162,7 @@ For an HTTP surface, stream `ToUiEventsAsync()` instead and serialize each event
 - [UI support](docs/ui.md)
 - [Example: the Progress Board — every tool kind in one stream](docs/examples/progress-board.md)
 - [Example: the UI contract, three ways](docs/examples/ui-contract.md)
+- [Sample: the interactive demo console app](samples/Andes.Extensions.AI.Demo/README.md)
 
 ## License
 

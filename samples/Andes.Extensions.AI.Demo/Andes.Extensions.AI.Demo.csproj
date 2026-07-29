@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Andes.Extensions.AI.Demo</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.AI.OpenAI" />
+    <PackageReference Include="Microsoft.Agents.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="Spectre.Console" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Andes.Extensions.AI\Andes.Extensions.AI.csproj" />
+    <ProjectReference Include="..\..\Andes.Extensions.AI.Agent\Andes.Extensions.AI.Agent.csproj" />
+    <ProjectReference Include="..\..\Andes.Extensions.AI.Mcp\Andes.Extensions.AI.Mcp.csproj" />
+    <ProjectReference Include="..\..\Andes.Extensions.AI.UI\Andes.Extensions.AI.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="appsettings.json" Condition="Exists('appsettings.json')" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
