@@ -15,7 +15,8 @@ internal sealed class AzureOpenAISettings
     public string? Deployment { get; set; }
 
     public bool IsConfigured =>
-        Uri.TryCreate(Endpoint, UriKind.Absolute, out _) &&
+        Endpoint is { } endpoint && Uri.TryCreate(endpoint, UriKind.Absolute, out _) &&
+        !endpoint.Contains("your-resource", StringComparison.OrdinalIgnoreCase) &&
         !string.IsNullOrWhiteSpace(ApiKey) && !ApiKey.StartsWith('<') &&
         !string.IsNullOrWhiteSpace(Deployment) && !Deployment.StartsWith('<');
 

@@ -7,13 +7,15 @@ public class ChatProgressUpdateFactoryTests
     [Fact]
     public void CreateRequestStarted_Default_PopulatesWellKnownFields()
     {
+        DateTimeOffset before = DateTimeOffset.UtcNow;
         ChatProgressUpdate update = ChatProgressUpdate.CreateRequestStarted();
+        DateTimeOffset after = DateTimeOffset.UtcNow;
 
         Assert.Equal(ChatProgressKind.RequestStarted, update.Kind);
         Assert.Equal("Starting request", update.Message);
         Assert.Equal(ChatProgressUpdate.ExternalScopeId, update.ScopeId);
         Assert.Equal(0, update.Depth);
-        Assert.NotEqual(default, update.Timestamp);
+        Assert.InRange(update.Timestamp, before, after);
     }
 
     [Fact]
@@ -28,13 +30,15 @@ public class ChatProgressUpdateFactoryTests
     [Fact]
     public void CreateReasoning_Default_PopulatesWellKnownFields()
     {
+        DateTimeOffset before = DateTimeOffset.UtcNow;
         ChatProgressUpdate update = ChatProgressUpdate.CreateReasoning();
+        DateTimeOffset after = DateTimeOffset.UtcNow;
 
         Assert.Equal(ChatProgressKind.Reasoning, update.Kind);
         Assert.Equal("Reasoning...", update.Message);
         Assert.Equal(ChatProgressUpdate.ExternalScopeId, update.ScopeId);
         Assert.Equal(0, update.Depth);
-        Assert.NotEqual(default, update.Timestamp);
+        Assert.InRange(update.Timestamp, before, after);
     }
 
     [Fact]

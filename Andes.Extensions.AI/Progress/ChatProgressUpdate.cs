@@ -125,7 +125,7 @@ public sealed class ChatProgressUpdate
             Message = message ?? "Starting request",
             ScopeId = ExternalScopeId,
             Depth = 0,
-            Timestamp = DateTimeOffset.UtcNow,
+            Timestamp = TimeProvider.System.GetUtcNow(),
         };
     }
 
@@ -147,7 +147,7 @@ public sealed class ChatProgressUpdate
             Message = message ?? "Reasoning...",
             ScopeId = ExternalScopeId,
             Depth = 0,
-            Timestamp = DateTimeOffset.UtcNow,
+            Timestamp = TimeProvider.System.GetUtcNow(),
         };
     }
 }
