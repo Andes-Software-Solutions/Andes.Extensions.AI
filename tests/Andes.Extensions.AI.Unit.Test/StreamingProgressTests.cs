@@ -23,8 +23,7 @@ public class StreamingProgressTests
         List<ChatResponseUpdate> updates = await TestPipeline.CollectAsync(client, new ChatOptions { Tools = [tool] });
         List<ChatProgressUpdate> progress = TestPipeline.ProgressOf(updates);
 
-        Assert.Equal(ChatProgressKind.RequestStarted, progress[0].Kind);
-        Assert.Equal(ChatProgressKind.Thinking, progress[1].Kind);
+        Assert.Equal(ChatProgressKind.ToolInvoking, progress[0].Kind);
 
         int invokingIndex = TestPipeline.IndexOfProgress(updates, ChatProgressKind.ToolInvoking);
         int resultIndex = TestPipeline.IndexOfContent<FunctionResultContent>(updates);
@@ -40,7 +39,8 @@ public class StreamingProgressTests
         Assert.Equal("Calling GetWeather Tool", progress[toolInvoking].Message);
         Assert.Equal("Extracting...", progress[toolProgress].Message);
 
-        Assert.Contains(kinds.Skip(toolCompleted), kind => kind == ChatProgressKind.Thinking);
+        Assert.DoesNotContain(ChatProgressKind.Custom, kinds);
+        Assert.DoesNotContain(ChatProgressKind.Reasoning, kinds);
         Assert.Equal(ChatProgressKind.RequestCompleted, progress[^1].Kind);
         Assert.IsType<UsageReportContent>(updates[^1].Contents.Single());
 
@@ -63,7 +63,7 @@ public class StreamingProgressTests
 
         Assert.Empty(updates.SelectMany(update => update.Contents).OfType<ChatProgressContent>());
         Assert.NotEmpty(updates.SelectMany(update => update.Contents).OfType<UsageReportContent>());
-        Assert.Contains(observer.Updates, update => update.Kind == ChatProgressKind.RequestStarted);
+        Assert.DoesNotContain(observer.Updates, update => update.Kind == ChatProgressKind.Custom);
         Assert.Contains(observer.Updates, update => update.Kind == ChatProgressKind.RequestCompleted);
         Assert.NotNull(observer.Report);
     }

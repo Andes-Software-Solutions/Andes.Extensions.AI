@@ -16,6 +16,12 @@ public sealed class AzureOpenAISettings
     public string? ApiKey { get; set; }
 
     public string? Deployment { get; set; }
+
+    /// <summary>
+    /// Optional reasoning-capable deployment (gpt-5 family / o-series) used by the Responses API
+    /// tests; when absent those tests skip while the chat-deployment tests still run.
+    /// </summary>
+    public string? ResponsesDeployment { get; set; }
 }
 
 /// <summary>
@@ -26,6 +32,9 @@ public sealed class AzureOpenAIFixture
 {
     public const string SkipReason =
         "appsettings.integration.json is missing or incomplete; copy appsettings.integration.sample.json and fill in the AzureOpenAI section.";
+
+    public const string ResponsesSkipReason =
+        "AzureOpenAI:ResponsesDeployment is not configured; add a reasoning-capable deployment name to appsettings.integration.json to run the Responses API tests.";
 
     public AzureOpenAIFixture()
     {
@@ -42,6 +51,11 @@ public sealed class AzureOpenAIFixture
         !string.IsNullOrWhiteSpace(Settings.Endpoint)
         && !string.IsNullOrWhiteSpace(Settings.ApiKey)
         && !string.IsNullOrWhiteSpace(Settings.Deployment);
+
+    public bool IsResponsesConfigured =>
+        !string.IsNullOrWhiteSpace(Settings.Endpoint)
+        && !string.IsNullOrWhiteSpace(Settings.ApiKey)
+        && !string.IsNullOrWhiteSpace(Settings.ResponsesDeployment);
 
     public IChatClient CreatePipeline(Action<ToolTrackingOptions>? configure = null)
     {

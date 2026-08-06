@@ -11,6 +11,13 @@ namespace Andes.Extensions.AI;
 public sealed class ChatProgressUpdate
 {
     /// <summary>
+    /// The well-known scope identifier stamped on updates created outside a tracked request via
+    /// <see cref="CreateCustom(string)"/>.
+    /// The middleware's own per-request identifiers ("scope-1", "scope-2", …) never collide with it.
+    /// </summary>
+    public const string ExternalScopeId = "scope-external";
+
+    /// <summary>
     /// Gets the kind of progress event.
     /// </summary>
     public required ChatProgressKind Kind { get; init; }
@@ -67,7 +74,10 @@ public sealed class ChatProgressUpdate
     /// <summary>
     /// Gets the elapsed duration for completion events
     /// (<see cref="ChatProgressKind.ToolCompleted"/>, <see cref="ChatProgressKind.ToolFailed"/>,
-    /// and <see cref="ChatProgressKind.RequestCompleted"/>).
+    /// <see cref="ChatProgressKind.ReasoningCompleted"/>, and
+    /// <see cref="ChatProgressKind.RequestCompleted"/>). For a reasoning completion it measures
+    /// first detection to the first non-reasoning content of the turn (or the end of the stream),
+    /// and is <see langword="null"/> on the non-streaming post-hoc mirror.
     /// </summary>
     public TimeSpan? Duration { get; init; }
 
@@ -93,4 +103,37 @@ public sealed class ChatProgressUpdate
     /// Gets the total amount of work required — the denominator for <see cref="Progress"/> — when known.
     /// </summary>
     public double? ProgressTotal { get; init; }
+
+    /// <summary>
+    /// Creates a request-level <see cref="ChatProgressKind.Custom"/> update carrying an
+    /// application-supplied status message, for emitting outside the middleware — for example,
+    /// prepended to the update stream a UI consumes so a status line shows before the first
+    /// tracked event arrives.
+    /// </summary>
+    /// <param name="message">The status text.</param>
+    /// <returns>An update stamped with <see cref="ExternalScopeId"/>, depth 0, and the current UTC time.</returns>
+    /// <remarks>
+    /// The middleware never emits this kind itself. Construct the update with an object initializer
+    /// instead when a custom <see cref="ScopeId"/> or <see cref="Timestamp"/> is needed.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="message"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="message"/> is empty.</exception>
+    /// <example>
+    /// <code language="csharp">
+    /// ChatResponseUpdate started = ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate();
+    /// </code>
+    /// </example>
+    public static ChatProgressUpdate CreateCustom(string message)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(message);
+
+        return new ChatProgressUpdate
+        {
+            Kind = ChatProgressKind.Custom,
+            Message = message,
+            ScopeId = ExternalScopeId,
+            Depth = 0,
+            Timestamp = TimeProvider.System.GetUtcNow(),
+        };
+    }
 }

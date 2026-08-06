@@ -24,9 +24,9 @@ public class NonStreamingTests
         ChatResponse response = await client.GetResponseAsync("prompt", new ChatOptions { Tools = [tool] });
 
         List<ChatProgressKind> kinds = observer.Updates.Select(update => update.Kind).ToList();
-        Assert.Equal(ChatProgressKind.RequestStarted, kinds[0]);
-        Assert.Equal(ChatProgressKind.Thinking, kinds[1]);
-        Assert.Contains(ChatProgressKind.ToolInvoking, kinds);
+        Assert.Equal(ChatProgressKind.ToolInvoking, kinds[0]);
+        Assert.DoesNotContain(ChatProgressKind.Custom, kinds);
+        Assert.DoesNotContain(ChatProgressKind.Reasoning, kinds);
         Assert.Contains(ChatProgressKind.ToolProgress, kinds);
         Assert.Contains(ChatProgressKind.ToolCompleted, kinds);
         Assert.Equal(ChatProgressKind.RequestCompleted, kinds[^1]);

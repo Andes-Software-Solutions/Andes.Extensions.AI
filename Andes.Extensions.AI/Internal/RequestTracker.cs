@@ -20,6 +20,9 @@ internal sealed class RequestTracker
     private readonly long _startTimestamp;
     private int _scopeCounter;
     private int _iteration;
+    private bool _reasoningAnnounced;
+    private bool _reasoningCompleted;
+    private long _reasoningStartTimestamp;
     private string? _lastResponseId;
     private string? _lastModelId;
 
@@ -45,27 +48,75 @@ internal sealed class RequestTracker
         }
     }
 
-    public void EmitRequestStarted()
+    /// <summary>
+    /// Emits a single <see cref="ChatProgressKind.Reasoning"/> event for the current model turn the
+    /// first time reasoning content is detected; repeat detections in the same turn are ignored.
+    /// Re-armed by <see cref="AdvanceIteration"/> after each tool round-trip. The event carries only
+    /// the fact that reasoning is happening — never the reasoning text.
+    /// </summary>
+    public void OnReasoningDetected()
     {
+        lock (_lock)
+        {
+            if (_reasoningAnnounced)
+            {
+                return;
+            }
+
+            _reasoningAnnounced = true;
+            _reasoningCompleted = false;
+            _reasoningStartTimestamp = Options.TimeProvider.GetTimestamp();
+        }
+
         Emit(new ChatProgressUpdate
         {
-            Kind = ChatProgressKind.RequestStarted,
-            Message = "Starting request",
+            Kind = ChatProgressKind.Reasoning,
+            Message = "Reasoning...",
             ScopeId = RootScope.ScopeId,
             Depth = 0,
             Timestamp = Now(),
         });
     }
 
-    public void EmitThinking()
+    /// <summary>
+    /// Emits a single <see cref="ChatProgressKind.ReasoningCompleted"/> event closing the current
+    /// turn's reasoning, the first time non-reasoning content follows a detection (or the stream
+    /// ends). A no-op when no reasoning was detected this turn or the turn is already closed.
+    /// The event carries the elapsed reasoning time when <paramref name="measured"/> is
+    /// <see langword="true"/> — never the reasoning text.
+    /// </summary>
+    /// <remarks>
+    /// The Reasoning/ReasoningCompleted pair ordering relies on the latch methods being called
+    /// from a single thread per request (the streaming pump, or the non-streaming request thread):
+    /// <see cref="Emit"/> runs outside <see cref="_lock"/>, so concurrent callers could invert the pair.
+    /// </remarks>
+    /// <param name="measured">
+    /// <see langword="true"/> to stamp the elapsed time since detection on
+    /// <see cref="ChatProgressUpdate.Duration"/>; <see langword="false"/> for the non-streaming
+    /// post-hoc mirror, where elapsed time is meaningless and the duration stays <see langword="null"/>.
+    /// </param>
+    public void OnReasoningCompleted(bool measured = true)
     {
+        long startTimestamp;
+        lock (_lock)
+        {
+            if (!_reasoningAnnounced || _reasoningCompleted)
+            {
+                return;
+            }
+
+            _reasoningCompleted = true;
+            startTimestamp = _reasoningStartTimestamp;
+        }
+
         Emit(new ChatProgressUpdate
         {
-            Kind = ChatProgressKind.Thinking,
-            Message = "Thinking...",
+            Kind = ChatProgressKind.ReasoningCompleted,
+            Message = "Reasoning completed",
             ScopeId = RootScope.ScopeId,
             Depth = 0,
             Timestamp = Now(),
+            Duration = measured ? Options.TimeProvider.GetElapsedTime(startTimestamp) : null,
         });
     }
 
@@ -214,16 +265,17 @@ internal sealed class RequestTracker
     }
 
     /// <summary>
-    /// Advances the model-turn counter after a tool round-trip and announces the next turn.
+    /// Advances the model-turn counter after a tool round-trip and re-arms reasoning detection
+    /// for the next turn.
     /// </summary>
     public void AdvanceIteration()
     {
         lock (_lock)
         {
             _iteration++;
+            _reasoningAnnounced = false;
+            _reasoningCompleted = false;
         }
-
-        EmitThinking();
     }
 
     public ChatProgressUpdate CreateRequestCompletedUpdate(TimeSpan duration)

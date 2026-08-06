@@ -37,8 +37,8 @@ public class StripProgressContentTests
     {
         var progress = new ChatProgressContent(new ChatProgressUpdate
         {
-            Kind = ChatProgressKind.Thinking,
-            Message = "Thinking...",
+            Kind = ChatProgressKind.Reasoning,
+            Message = "Reasoning...",
             ScopeId = "scope-1",
         });
         var message = new ChatMessage(ChatRole.Assistant, [new TextContent("keep me"), progress]);

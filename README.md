@@ -1,11 +1,21 @@
 # Andes.Extensions.AI
 
+[![Andes.Extensions.AI](https://img.shields.io/nuget/v/Andes.Extensions.AI.svg?logo=nuget&label=Andes.Extensions.AI)](https://www.nuget.org/packages/Andes.Extensions.AI)
+[![Andes.Extensions.AI.Mcp](https://img.shields.io/nuget/v/Andes.Extensions.AI.Mcp.svg?logo=nuget&label=Andes.Extensions.AI.Mcp)](https://www.nuget.org/packages/Andes.Extensions.AI.Mcp)
+[![Andes.Extensions.AI.Agent](https://img.shields.io/nuget/v/Andes.Extensions.AI.Agent.svg?logo=nuget&label=Andes.Extensions.AI.Agent)](https://www.nuget.org/packages/Andes.Extensions.AI.Agent)
+[![Andes.Extensions.AI.UI](https://img.shields.io/nuget/v/Andes.Extensions.AI.UI.svg?logo=nuget&label=Andes.Extensions.AI.UI)](https://www.nuget.org/packages/Andes.Extensions.AI.UI)
+[![NuGet Publish](https://github.com/Andes-Software-Solutions/Andes.Extensions.AI/actions/workflows/nuget.yml/badge.svg)](https://github.com/Andes-Software-Solutions/Andes.Extensions.AI/actions/workflows/nuget.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](global.json)
+
 Middleware extensions for [Microsoft.Extensions.AI](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai): per-request and per-tool **token usage tracking**, and **streaming status propagation** for `IChatClient` pipelines.
 
 Add one line to your pipeline and get:
 
 - **Token usage tracking** — input/output/total tokens for the main assistant, per model turn, and attributed to each tool call (including LLM calls nested inside tools), rolled up into a `ChatUsageReport`.
 - **Streaming progress statuses** — synthetic `ChatProgressContent` updates interleaved into the live stream so your UI can show "Calling GetWeather Tool", sub-statuses reported from inside the tool ("Extracting…", "Processing…"), and completion — while the model and tools are still working.
+- **Reasoning detection** — when the model streams reasoning content (`TextReasoningContent`, e.g. via the OpenAI Responses API), a `Reasoning` status is emitted once per model turn and a matching `ReasoningCompleted` closes it when the answer or the next tool call starts, carrying the elapsed reasoning time — truthful, detection-driven, and never carrying the reasoning text itself.
+- **Developer-owned request statuses** — the middleware doesn't invent request-level statuses; construct your own with `ChatProgressUpdate.CreateCustom("Starting request")` and interleave them with `ToResponseUpdate()`.
 - **Out-of-band observers** — implement `IChatProgressObserver` to receive the same events and the final report without parsing the stream.
 - **Privacy by default** — progress events never carry prompt content, tool arguments, or tool results unless explicitly opted in.
 
@@ -65,6 +75,25 @@ Before persisting responses into conversation history, remove the synthetic cont
 ```csharp
 ChatResponse response = updates.ToChatResponse().StripProgressContent();
 ```
+
+### Emit your own statuses
+
+The middleware only reports what it can observe — tool activity, detected reasoning, completion. Request-level statuses like "Starting request" are yours to send: create them with `ChatProgressUpdate.CreateCustom(...)` and interleave them into whatever stream your UI consumes, in the exact shape the middleware itself emits:
+
+```csharp
+async IAsyncEnumerable<ChatResponseUpdate> StreamTurn()
+{
+    // Shows in the UI before the first tracked event arrives.
+    yield return ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate();
+
+    await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(history, chatOptions))
+    {
+        yield return update;
+    }
+}
+```
+
+The message is required and entirely yours — the middleware never emits a `Custom` status itself. The updates are stamped with the well-known `ChatProgressUpdate.ExternalScopeId`, so they never collide with the middleware's own scopes.
 
 ## MCP tools
 
@@ -166,6 +195,16 @@ dotnet run --project samples/Andes.Extensions.AI.Demo
 
 See the [sample README](samples/Andes.Extensions.AI.Demo/README.md) for what each file demonstrates.
 
+`samples/Andes.Extensions.AI.Demo.Responses` is its sibling built on the **Azure OpenAI Responses API** (stable packages only, via the OpenAI-v1-compatible endpoint): the same live rendering, plus the detection-driven `Reasoning` status lighting up as reasoning summaries stream. It needs a reasoning-capable deployment (gpt-5 family / o-series):
+
+```bash
+cp samples/Andes.Extensions.AI.Demo.Responses/appsettings.sample.json samples/Andes.Extensions.AI.Demo.Responses/appsettings.json
+# fill in the AzureOpenAI section, then:
+dotnet run --project samples/Andes.Extensions.AI.Demo.Responses
+```
+
+See the [Responses sample README](samples/Andes.Extensions.AI.Demo.Responses/README.md) for details.
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
@@ -176,6 +215,7 @@ See the [sample README](samples/Andes.Extensions.AI.Demo/README.md) for what eac
 - [Example: the Progress Board — every tool kind in one stream](docs/examples/progress-board.md)
 - [Example: the UI contract, three ways](docs/examples/ui-contract.md)
 - [Sample: the interactive demo console app](samples/Andes.Extensions.AI.Demo/README.md)
+- [Sample: the Responses API demo console app](samples/Andes.Extensions.AI.Demo.Responses/README.md)
 - [Release notes](releases/)
 
 ## License

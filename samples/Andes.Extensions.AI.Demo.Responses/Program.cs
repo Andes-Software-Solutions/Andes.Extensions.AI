@@ -1,73 +1,64 @@
+using System.ClientModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Andes.Extensions.AI;
-using Andes.Extensions.AI.Demo;
-using Azure;
-using Azure.AI.OpenAI;
+using Andes.Extensions.AI.Demo.Responses;
 using Microsoft.Extensions.AI;
+using OpenAI;
 using Spectre.Console;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-AzureOpenAISettings settings = AzureOpenAISettings.Load();
+var settings = AzureOpenAISettings.Load();
 if (!settings.IsConfigured)
 {
     AnsiConsole.Write(new Panel(new Markup(
             "[yellow]Azure OpenAI is not configured.[/]\n\n" +
             "Copy [bold]appsettings.sample.json[/] to [bold]appsettings.json[/] next to this project\n" +
-            "and fill in the [bold]AzureOpenAI[/] section ([grey]Endpoint, ApiKey, Deployment[/])."))
-        .Header("Andes.Extensions.AI demo")
+            "and fill in the [bold]AzureOpenAI[/] section ([grey]Endpoint, ApiKey, Deployment[/]).\n" +
+            "The deployment must be [bold]reasoning-capable[/] (gpt-5 family / o-series)."))
+        .Header("Andes.Extensions.AI Responses demo")
         .BorderColor(Color.Yellow));
     return;
 }
 
-await using DemoMcpServer mcp = await DemoMcpServer.StartAsync();
-
+// Azure OpenAI's OpenAI-v1-compatible endpoint (https://{resource}.openai.azure.com/openai/v1)
+// lets the plain OpenAIClient reach the Responses API with stable packages — the stable
+// Azure.AI.OpenAI client has no Responses surface. The deployment name doubles as the model id.
 // The one ordering invariant: UseToolTracking BEFORE UseFunctionInvocation, so the tracker
 // wraps the tools the invoker executes and observes the merged stream from outside the loop.
-IChatClient client = new AzureOpenAIClient(
-        new Uri(settings.Endpoint!),
-        new AzureKeyCredential(settings.ApiKey!))
-    .GetChatClient(settings.Deployment!)
-    .AsIChatClient()
+IChatClient client = new OpenAIClient(
+        new ApiKeyCredential(settings.ApiKey!),
+        new OpenAIClientOptions { Endpoint = new Uri(settings.Endpoint!.TrimEnd('/') + "/openai/v1") })
+    .GetResponsesClient()
+    .AsIChatClient(settings.Deployment!)
     .AsBuilder()
-    .UseToolTracking(options =>
-    {
-        options.UseMcpToolClassification();
-        options.UseAgentToolClassification();
-        // Out-of-band alternative: options.Observers.Add(new MyProgressObserver());
-        // Skipped here — a console-writing observer would interleave with the Live region.
-    })
+    .UseToolTracking()
     .UseFunctionInvocation()
     .Build();
 
-// The Packing Agent is shared by both nesting scenarios: as a tool of the Research Agent
-// (agent inside agent) and invoked inside the PlanTrip tool body (agent inside a function).
-// Either way it opens its own child scope and renders as a nested activity card.
-AIFunction packingAgent = DemoAgents.CreatePackingAgent(settings).WithTracking();
-
-// No Temperature: reasoning-model deployments reject non-default values.
+// Reasoning summaries stream back as TextReasoningContent — the trigger for the middleware's
+// Reasoning status. Full output maps to Responses summary verbosity "detailed". Not Summary:
+// M.E.AI maps it to "concise", which gpt-5-series deployments reject (supported: auto,
+// detailed) — no summaries stream and the Reasoning status never fires. No Effort override:
+// ExtraHigh maps to "xhigh", accepted only by gpt-5.1+. No Temperature: reasoning models
+// reject non-default values.
 var chatOptions = new ChatOptions
 {
-    Reasoning = new ReasoningOptions
-    {
-        Output = ReasoningOutput.Full,
-    },
+    Reasoning = new ReasoningOptions { Output = ReasoningOutput.Full },
     Tools =
     [
-        AIFunctionFactory.Create(DemoTools.GetWeather),
-        DemoTools.CreatePlanTrip(packingAgent),
-        .. mcp.Tools.WithTracking(mcp.Client),
-        DemoAgents.CreateResearchAgent(settings, packingAgent).WithTracking(reportFunctionCalls: true),
+        AIFunctionFactory.Create(ResponsesDemoTools.GetWeather),
+        AIFunctionFactory.Create(ResponsesDemoTools.ConvertTemperature),
     ],
 };
 
-AnsiConsole.Write(new Rule("[bold]Andes.Extensions.AI[/] [dim]demo[/]").LeftJustified());
-AnsiConsole.MarkupLine("[dim]A tracked IChatClient pipeline rendered live from Andes.Extensions.AI.UI snapshots.[/]");
-AnsiConsole.MarkupLine("[dim]Try:[/]  [italic]Get the weather in Quito and the 5-day forecast.[/]");
-AnsiConsole.MarkupLine("[dim]     [/] [italic]Ask the Research Agent what to pack for Quito.[/] [dim](agent nested in an agent)[/]");
-AnsiConsole.MarkupLine("[dim]     [/] [italic]Plan a trip to Cusco.[/] [dim](agent nested in a plain tool)[/]");
+AnsiConsole.Write(new Rule("[bold]Andes.Extensions.AI[/] [dim]responses demo[/]").LeftJustified());
+AnsiConsole.MarkupLine("[dim]The Responses API pipeline: the header flips \"Reasoning...\" → \"Reasoning completed\" as summaries stream,[/]");
+AnsiConsole.MarkupLine("[dim]and the final frame keeps the full reasoning (with the measured time), the tool calls, and the answer.[/]");
+AnsiConsole.MarkupLine("[dim]Try:[/]  [italic]Get the weather in Quito, then convert the high to Fahrenheit.[/]");
+AnsiConsole.MarkupLine("[dim]     [/] [italic]What is the sum of the first ten prime numbers? Reason it out.[/]");
 AnsiConsole.MarkupLine("[dim]Press Enter on an empty line (or type 'exit') to quit.[/]");
 AnsiConsole.WriteLine();
 
@@ -135,18 +126,27 @@ while (true)
             await ConsumeAsync(render: null);
         }
 
-        // The final frame renders the report-derived tree (per-activity tokens live only there)
-        // merged with the live snapshot's text and sub-statuses.
-        ChatUsageReport? report = updates
-            .SelectMany(update => update.Contents)
-            .OfType<UsageReportContent>()
-            .FirstOrDefault()?.Report;
-        if (FinalSnapshot.Merge(report, last) is { } final)
+        // The last snapshot already carries the completed phase, the full reasoning text, and
+        // total usage. The recorded raw updates additionally carry the middleware's
+        // ReasoningCompleted statuses — summing their Duration (one per model turn) gives the
+        // total time the model spent reasoning, shown on the final frame's reasoning panel.
+        if (last is not null)
         {
-            AnsiConsole.Write(StatusRenderer.RenderFinal(final));
+            TimeSpan? reasoningDuration = updates
+                .SelectMany(update => update.Contents)
+                .OfType<ChatProgressContent>()
+                .Select(content => content.Progress)
+                .Where(progress => progress.Kind == ChatProgressKind.ReasoningCompleted)
+                .Aggregate(
+                    default(TimeSpan?),
+                    (total, progress) => progress.Duration is { } duration ? (total ?? TimeSpan.Zero) + duration : total);
+
+            AnsiConsole.Write(StatusRenderer.RenderFinal(last, reasoningDuration));
         }
 
-        // Strip in-band progress/usage content before it re-enters the next request.
+        // Strip only the synthetic progress/usage content before history re-enters the next
+        // request. TextReasoningContent is deliberately kept: the Responses API expects prior
+        // reasoning items to be replayed across tool round-trips and follow-up turns.
         history.AddRange(updates.ToChatResponse().StripProgressContent().Messages);
     }
     catch (Exception exception)

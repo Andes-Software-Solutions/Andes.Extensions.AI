@@ -1,35 +1,29 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Andes.Extensions.AI.Demo.Responses</RootNamespace>
     <!-- The OpenAI library still marks the Responses API [Experimental("OPENAI001")] in 2.12.0. -->
     <NoWarn>$(NoWarn);OPENAI001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.AI.OpenAI" />
-    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
-    <PackageReference Include="OpenAI" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit" />
-    <PackageReference Include="xunit.runner.visualstudio" />
-    <PackageReference Include="Xunit.SkippableFact" />
+    <PackageReference Include="OpenAI" />
+    <PackageReference Include="Spectre.Console" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Andes.Extensions.AI\Andes.Extensions.AI.csproj" />
+    <ProjectReference Include="..\..\Andes.Extensions.AI.UI\Andes.Extensions.AI.UI.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="appsettings.integration.json" Condition="Exists('appsettings.integration.json')" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="appsettings.integration.sample.json" CopyToOutputDirectory="Never" />
+    <None Include="appsettings.json" Condition="Exists('appsettings.json')" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

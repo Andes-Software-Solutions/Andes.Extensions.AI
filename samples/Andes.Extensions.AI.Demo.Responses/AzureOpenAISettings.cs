@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Configuration;
 
-namespace Andes.Extensions.AI.Demo;
+namespace Andes.Extensions.AI.Demo.Responses;
 
 /// <summary>
 /// Azure OpenAI connection settings loaded from the gitignored <c>appsettings.json</c>

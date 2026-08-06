@@ -6,14 +6,20 @@ namespace Andes.Extensions.AI;
 public enum ChatProgressKind
 {
     /// <summary>
-    /// The tracked request has started and no work has been forwarded to the inner client yet.
+    /// A developer-constructed status carrying an application-supplied message. Never emitted by
+    /// the middleware; construct one with <see cref="ChatProgressUpdate.CreateCustom(string)"/> to
+    /// announce your own request-level status outside the tracked pipeline.
     /// </summary>
-    RequestStarted = 0,
+    Custom = 0,
 
     /// <summary>
-    /// A model turn is beginning; emitted before the first inner call and again after each tool round-trip.
+    /// The model is producing reasoning output. Emitted once per model turn when reasoning content
+    /// (<see cref="Microsoft.Extensions.AI.TextReasoningContent"/>) is detected on the response —
+    /// for example from the OpenAI Responses API. The event never carries the reasoning text
+    /// itself; the library provides no factory for it — the middleware raises it when it detects
+    /// reasoning content.
     /// </summary>
-    Thinking = 1,
+    Reasoning = 1,
 
     /// <summary>
     /// A tool invocation is starting; the message carries the display header (for example, "Calling GetWeather Tool").
@@ -45,4 +51,13 @@ public enum ChatProgressKind
     /// observers only; the accompanying usage report may be partial.
     /// </summary>
     RequestFailed = 7,
+
+    /// <summary>
+    /// The model finished producing reasoning output for the current model turn — raised when the
+    /// first answer text or function call follows detected reasoning, or when the stream ends.
+    /// Emitted at most once per turn (a later reasoning burst in the same turn is not re-announced);
+    /// carries the elapsed reasoning time in <see cref="ChatProgressUpdate.Duration"/> when the
+    /// request streams, and never the reasoning text itself.
+    /// </summary>
+    ReasoningCompleted = 8,
 }

@@ -109,23 +109,54 @@ await foreach (var update in client.GetStreamingResponseAsync(
 
 Each `ChatProgressUpdate` carries the fields a UI needs to render a hierarchy without holding extra state:
 
-- **`Kind`** — `RequestStarted`, `Thinking`, `ToolInvoking` (the header, e.g. "Calling GetWeather Tool"), `ToolProgress` (a sub-status), `ToolCompleted`, `ToolFailed`, `RequestCompleted`, and `RequestFailed` (out-of-band only: raised to observers when the request faults or is canceled, followed by `OnRequestCompleted` with a possibly partial report).
+- **`Kind`** — `ToolInvoking` (the header, e.g. "Calling GetWeather Tool"), `ToolProgress` (a sub-status), `ToolCompleted`, `ToolFailed`, `Reasoning` (emitted at most once per model turn when the middleware detects reasoning content — `TextReasoningContent` — on the stream, as the OpenAI Responses API produces for reasoning-capable models; the event never carries the reasoning text), `ReasoningCompleted` (closes a detected reasoning turn, at most once per model turn — raised when the first answer text or function call follows the reasoning, or when the stream ends; `Duration` carries the elapsed reasoning time when streaming and is `null` on the non-streaming post-hoc mirror), `RequestCompleted`, `RequestFailed` (out-of-band only: raised to observers when the request faults or is canceled, followed by `OnRequestCompleted` with a possibly partial report), and `Custom` (never emitted by the middleware — a developer-constructed status carrying a message you supply, see [Emit request-level statuses yourself](#emit-request-level-statuses-yourself)).
 - **`ScopeId` / `ParentScopeId`** — `ToolProgress` events share the `ScopeId` of their owning tool call, so group sub-statuses under the header with the matching `ScopeId`; `ParentScopeId` links nested tool calls to their parent.
 - **`Depth`** — 0 for request-level events, 1 for tool headers, 2 for sub-statuses under a header, deeper for nested tools; ideal for indentation.
 - **`ToolName` / `ToolKind` / `ToolSource` / `CallId` / `Duration`** — for richer rendering and correlation with the model's function calls.
 - **`Progress` / `ProgressTotal`** — optional numeric progress (`double?`) on `ToolProgress` events whose reporter supplied values, via the `ChatProgress.Report(status, progress, progressTotal)` overload or a bridged MCP progress notification (see [MCP tools](#mcp-tools)).
 
-A typical rendering of the events for one tool call:
+A typical rendering of the events for one tool call — the middleware emits nothing until it observes something, so the stream opens with the `ToolInvoking` header:
 
 ```text
-[RequestStarted] Starting request
-[Thinking] Thinking...
   [ToolInvoking] Calling GetWeather Tool
     [ToolProgress] Extracting...
   [ToolCompleted] GetWeather completed
-[Thinking] Thinking...
 [RequestCompleted] Request completed
 ```
+
+On a pipeline whose model streams reasoning content — the OpenAI Responses API with a reasoning-capable deployment; plain Chat Completions never streams reasoning, so chat pipelines never see it — a `Reasoning` status additionally announces each model turn the moment reasoning is detected, and a matching `ReasoningCompleted` closes it the moment the answer or the next tool call starts (carrying the elapsed reasoning time in `Duration`) — both re-armed after every tool round-trip:
+
+```text
+[Reasoning] Reasoning...
+[ReasoningCompleted] Reasoning completed
+  [ToolInvoking] Calling GetWeather Tool
+    [ToolProgress] Extracting...
+  [ToolCompleted] GetWeather completed
+[Reasoning] Reasoning...
+[ReasoningCompleted] Reasoning completed
+[RequestCompleted] Request completed
+```
+
+## Emit request-level statuses yourself
+
+The middleware only reports what it can observe — tool activity, detected reasoning, completion. Request-level statuses like "Starting request" are the application's to send: one public factory constructs them, and `ToResponseUpdate()` wraps one in the exact synthetic shape the middleware emits — a role-less `ChatResponseUpdate` carrying a single `ChatProgressContent` — so it can be prepended or interleaved into whatever stream your consumer reads, whether that is a rendering loop like the one above or the [UI package](ui.md)'s `ToStatusSnapshotsAsync()`:
+
+```csharp
+async IAsyncEnumerable<ChatResponseUpdate> StreamTurn()
+{
+    // Shows in the UI before the first tracked event arrives.
+    yield return ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate();
+
+    await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(history, chatOptions))
+    {
+        yield return update;
+    }
+}
+```
+
+**`ChatProgressUpdate.CreateCustom(message)`** builds a `Custom` update carrying your message — the message is required (`ArgumentNullException` on `null`, `ArgumentException` on empty) and entirely application-defined: "Starting request", "Warming up…", whatever the UI should show. There is deliberately no factory for `Reasoning` or `ReasoningCompleted`: those statuses are detection-driven and only ever originate from the middleware.
+
+The factory stamps the update with depth 0, the current UTC time, and the well-known scope id `ChatProgressUpdate.ExternalScopeId` (`"scope-external"`), which the middleware's own per-request scope identifiers never collide with. The synthetic update carries no text, so `update.Text` accumulation is unaffected; prepend it outside any loop that records updates for chat history (as both sample apps do in their `StreamTurn` iterators — see [`samples/Andes.Extensions.AI.Demo`](../samples/Andes.Extensions.AI.Demo/README.md) and [`samples/Andes.Extensions.AI.Demo.Responses`](../samples/Andes.Extensions.AI.Demo.Responses/README.md)), or strip it with [`StripProgressContent()`](#strip-synthetic-content-before-persisting-history) like any other synthetic content.
 
 ## Report from inside a tool
 
@@ -343,6 +374,6 @@ public sealed class AzureOpenAISettings
 dotnet test
 ```
 
-Unit tests (`tests\Andes.Extensions.AI.Unit.Test`) need no network: a scripted fake drives the real `FunctionInvokingChatClient`. Integration tests (`tests\Andes.Extensions.AI.Integration.Test`) call Azure OpenAI for real, but **skip cleanly** when `appsettings.integration.json` is missing or incomplete — so `dotnet test` always passes out of the box. To run them for real, copy `appsettings.integration.sample.json` to `appsettings.integration.json` in the integration test project and fill in the `AzureOpenAI` section. The file is gitignored; do not commit it.
+Unit tests (`tests\Andes.Extensions.AI.Unit.Test`) need no network: a scripted fake drives the real `FunctionInvokingChatClient`. Integration tests (`tests\Andes.Extensions.AI.Integration.Test`) call Azure OpenAI for real, but **skip cleanly** when `appsettings.integration.json` is missing or incomplete — so `dotnet test` always passes out of the box. To run them for real, copy `appsettings.integration.sample.json` to `appsettings.integration.json` in the integration test project and fill in the `AzureOpenAI` section. An optional `ResponsesDeployment` entry (a reasoning-capable deployment — gpt-5 family / o-series) additionally enables the Responses API suite, which exercises the detection-driven `Reasoning` status end to end; without it those tests skip while the chat-deployment tests still run. The file is gitignored; do not commit it.
 
 The [MCP package](mcp.md) adds three more projects: `tests\Andes.Extensions.AI.Mcp.Unit.Test` (also no network — an in-memory pipe fixture hosts a real MCP client/server pair in-process), `tests\Andes.Extensions.AI.TestMcpServer` (a runnable stdio server, "Andes Test MCP", with `echo`/`add`/`count_down` tools), and `tests\Andes.Extensions.AI.Mcp.Integration.Test`, which drives Azure OpenAI against that stdio server and **links the same gitignored `appsettings.integration.json`** — configure the file once and both integration projects use it.

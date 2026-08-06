@@ -13,7 +13,7 @@ namespace Andes.Extensions.AI;
 public sealed record AssistantStatusSnapshot
 {
     /// <summary>
-    /// Gets the current request-level status line, such as "Thinking…", or <see langword="null"/>
+    /// Gets the current request-level status line, such as "Reasoning…", or <see langword="null"/>
     /// before the first status arrives.
     /// </summary>
     public string? AssistantStatus { get; init; }
@@ -32,6 +32,13 @@ public sealed record AssistantStatusSnapshot
     /// Gets the assistant's answer text accumulated so far, when any has streamed.
     /// </summary>
     public string? Text { get; init; }
+
+    /// <summary>
+    /// Gets the model's reasoning summary text accumulated so far, when the provider streams
+    /// reasoning content (for example the OpenAI Responses API); otherwise <see langword="null"/>.
+    /// Deltas accumulate verbatim across the whole request, including across tool round-trips.
+    /// </summary>
+    public string? ReasoningText { get; init; }
 
     /// <summary>
     /// Gets the total token usage for the request, set once it finishes.

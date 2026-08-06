@@ -22,7 +22,13 @@ namespace Andes.Extensions.AI;
 /// <see cref="ToolTrackingOptions.IncludeToolArguments"/> is explicitly enabled.
 /// </para>
 /// </remarks>
-public sealed class ToolTrackingChatClient : DelegatingChatClient
+/// <remarks>
+/// Initializes a new instance of the <see cref="ToolTrackingChatClient"/> class.
+/// </remarks>
+/// <param name="innerClient">The inner client to delegate to.</param>
+/// <param name="options">The tracking options, or <see langword="null"/> to use defaults.</param>
+/// <exception cref="ArgumentNullException"><paramref name="innerClient"/> is <see langword="null"/>.</exception>
+public sealed class ToolTrackingChatClient(IChatClient innerClient, ToolTrackingOptions? options = null) : DelegatingChatClient(innerClient)
 {
     /// <summary>
     /// The key under which the <see cref="ChatUsageReport"/> is attached to
@@ -31,19 +37,7 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
     /// </summary>
     public const string UsageReportPropertyName = "andes.ai.usage_report";
 
-    private readonly ToolTrackingOptions _options;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ToolTrackingChatClient"/> class.
-    /// </summary>
-    /// <param name="innerClient">The inner client to delegate to.</param>
-    /// <param name="options">The tracking options, or <see langword="null"/> to use defaults.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="innerClient"/> is <see langword="null"/>.</exception>
-    public ToolTrackingChatClient(IChatClient innerClient, ToolTrackingOptions? options = null)
-        : base(innerClient)
-    {
-        _options = options ?? new ToolTrackingOptions();
-    }
+    private readonly ToolTrackingOptions _options = options ?? new ToolTrackingOptions();
 
     /// <inheritdoc/>
     public override async Task<ChatResponse> GetResponseAsync(
@@ -56,9 +50,6 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
         ToolScope? parentScope = AmbientScope.Current;
         var tracker = new RequestTracker(_options, GetMetadata(), writer: null);
         ChatOptions? effectiveOptions = WrapTools(options, tracker);
-
-        tracker.EmitRequestStarted();
-        tracker.EmitThinking();
 
         ChatResponse response;
         ToolScope? previous = AmbientScope.Current;
@@ -80,6 +71,15 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
         if (response.Usage is { } usage)
         {
             tracker.RecordAssistantUsage(usage, response.ResponseId, response.ModelId);
+        }
+
+        // Post-hoc parity with the streaming path: turns are indistinguishable in an aggregated
+        // response, so at most one Reasoning/ReasoningCompleted pair is raised per request,
+        // observers-only. Unmeasured: elapsed time since a post-hoc detection is meaningless.
+        if (response.Messages.SelectMany(static message => message.Contents).OfType<TextReasoningContent>().Any())
+        {
+            tracker.OnReasoningDetected();
+            tracker.OnReasoningCompleted(measured: false);
         }
 
         ChatUsageReport report = tracker.BuildReport();
@@ -112,9 +112,6 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
         });
         var tracker = new RequestTracker(_options, GetMetadata(), channel.Writer);
         ChatOptions? effectiveOptions = WrapTools(options, tracker);
-
-        tracker.EmitRequestStarted();
-        tracker.EmitThinking();
 
         using var pumpCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         CancellationToken pumpToken = pumpCancellation.Token;
@@ -215,6 +212,9 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
                 }
             }
 
+            // A reasoning-only final turn has no answer text or tool call to close it; close it
+            // here while the channel is still open so the event stays in-band.
+            tracker.OnReasoningCompleted();
             writer.TryComplete();
         }
         catch (Exception ex)
@@ -235,11 +235,22 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
                     break;
 
                 case FunctionCallContent call:
+                    // Completion first: the "reasoning done" event must precede any ToolInvoking
+                    // header an unwrapped tool's sighting emits.
+                    tracker.OnReasoningCompleted();
                     tracker.OnFunctionCall(call.CallId, call.Name);
                     break;
 
                 case FunctionResultContent:
                     sawFunctionResult = true;
+                    break;
+
+                case TextReasoningContent:
+                    tracker.OnReasoningDetected();
+                    break;
+
+                case TextContent { Text.Length: > 0 }:
+                    tracker.OnReasoningCompleted();
                     break;
 
                 default:
