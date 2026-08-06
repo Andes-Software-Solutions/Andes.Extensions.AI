@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Samples/">
     <Project Path="samples/Andes.Extensions.AI.Demo/Andes.Extensions.AI.Demo.csproj" />
+    <Project Path="samples/Andes.Extensions.AI.Demo.Responses/Andes.Extensions.AI.Demo.Responses.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="tests/Andes.Extensions.AI.Agent.Integration.Test/Andes.Extensions.AI.Agent.Integration.Test.csproj" Id="9c1ec657-53ee-4fe7-8cf4-e4f48d84b693" />
