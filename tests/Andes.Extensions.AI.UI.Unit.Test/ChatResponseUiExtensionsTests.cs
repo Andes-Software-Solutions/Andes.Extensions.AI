@@ -90,6 +90,37 @@ public class ChatResponseUiExtensionsTests
         Assert.Equal(ActivityState.Completed, last.Phase);
     }
 
+    [Fact]
+    public async Task ToStatusSnapshotsAsync_DevPrependedRequestStarted_SetsAssistantStatus()
+    {
+        var scripted = new ScriptedChatClient(ScriptedTurn.Text("Done."));
+        IChatClient client = TestPipeline.Build(scripted);
+
+        async IAsyncEnumerable<ChatResponseUpdate> StreamWithPrependedStatus()
+        {
+            yield return ChatProgressUpdate.CreateRequestStarted().ToResponseUpdate();
+
+            await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync("prompt"))
+            {
+                yield return update;
+            }
+        }
+
+        AssistantStatusSnapshot? first = null;
+        AssistantStatusSnapshot? last = null;
+        await foreach (AssistantStatusSnapshot snapshot in StreamWithPrependedStatus().ToStatusSnapshotsAsync())
+        {
+            first ??= snapshot;
+            last = snapshot;
+        }
+
+        Assert.NotNull(first);
+        Assert.Equal("Starting request", first!.AssistantStatus);
+        Assert.NotNull(last);
+        Assert.Equal(ActivityState.Completed, last!.Phase);
+        Assert.Contains("Done.", last.Text);
+    }
+
     private static async Task<List<AssistantUiEvent>> CollectAsync(IChatClient client, ChatOptions options)
     {
         var events = new List<AssistantUiEvent>();

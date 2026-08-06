@@ -7,7 +7,7 @@ namespace Andes.Extensions.AI;
 public enum AssistantUiEventKind
 {
     /// <summary>
-    /// A request-level status line, such as "Thinking…" — carried by <see cref="AssistantUiEvent.Message"/>.
+    /// A request-level status line, such as "Reasoning…" — carried by <see cref="AssistantUiEvent.Message"/>.
     /// </summary>
     Status,
 

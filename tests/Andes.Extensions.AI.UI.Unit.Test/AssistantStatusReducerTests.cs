@@ -7,7 +7,7 @@ public class AssistantStatusReducerTests
     {
         var reducer = new AssistantStatusReducer();
 
-        reducer.Apply(new AssistantUiEvent { Kind = AssistantUiEventKind.Status, Message = "Thinking…" });
+        reducer.Apply(new AssistantUiEvent { Kind = AssistantUiEventKind.Status, Message = "Reasoning…" });
         reducer.Apply(new AssistantUiEvent
         {
             Kind = AssistantUiEventKind.ActivityStarted,
@@ -43,7 +43,7 @@ public class AssistantStatusReducerTests
             DurationSeconds = 2.1,
         });
 
-        Assert.Equal("Thinking…", snapshot.AssistantStatus);
+        Assert.Equal("Reasoning…", snapshot.AssistantStatus);
         AssistantActivity agent = Assert.Single(snapshot.Activities);
         Assert.Equal("Research Agent", agent.DisplayName);
         Assert.Equal(ToolKind.Agent, agent.Kind);

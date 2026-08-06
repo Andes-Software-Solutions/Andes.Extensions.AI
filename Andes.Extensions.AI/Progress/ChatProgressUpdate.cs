@@ -11,6 +11,13 @@ namespace Andes.Extensions.AI;
 public sealed class ChatProgressUpdate
 {
     /// <summary>
+    /// The well-known scope identifier stamped on updates created outside a tracked request via
+    /// <see cref="CreateRequestStarted(string?)"/> and <see cref="CreateReasoning(string?)"/>.
+    /// The middleware's own per-request identifiers ("scope-1", "scope-2", …) never collide with it.
+    /// </summary>
+    public const string ExternalScopeId = "scope-external";
+
+    /// <summary>
     /// Gets the kind of progress event.
     /// </summary>
     public required ChatProgressKind Kind { get; init; }
@@ -93,4 +100,54 @@ public sealed class ChatProgressUpdate
     /// Gets the total amount of work required — the denominator for <see cref="Progress"/> — when known.
     /// </summary>
     public double? ProgressTotal { get; init; }
+
+    /// <summary>
+    /// Creates a request-level <see cref="ChatProgressKind.RequestStarted"/> update for emitting
+    /// outside the middleware — for example, prepended to the update stream a UI consumes so a
+    /// status line shows before the first tracked event arrives.
+    /// </summary>
+    /// <param name="message">The status text, or <see langword="null"/> to use "Starting request".</param>
+    /// <returns>An update stamped with <see cref="ExternalScopeId"/>, depth 0, and the current UTC time.</returns>
+    /// <remarks>
+    /// The middleware never emits this kind itself. Construct the update with an object initializer
+    /// instead when a custom <see cref="ScopeId"/> or <see cref="Timestamp"/> is needed.
+    /// </remarks>
+    /// <example>
+    /// <code language="csharp">
+    /// ChatResponseUpdate started = ChatProgressUpdate.CreateRequestStarted().ToResponseUpdate();
+    /// </code>
+    /// </example>
+    public static ChatProgressUpdate CreateRequestStarted(string? message = null)
+    {
+        return new ChatProgressUpdate
+        {
+            Kind = ChatProgressKind.RequestStarted,
+            Message = message ?? "Starting request",
+            ScopeId = ExternalScopeId,
+            Depth = 0,
+            Timestamp = DateTimeOffset.UtcNow,
+        };
+    }
+
+    /// <summary>
+    /// Creates a request-level <see cref="ChatProgressKind.Reasoning"/> update for emitting outside
+    /// the middleware, mirroring the event the middleware raises when it detects reasoning content.
+    /// </summary>
+    /// <param name="message">The status text, or <see langword="null"/> to use "Reasoning...".</param>
+    /// <returns>An update stamped with <see cref="ExternalScopeId"/>, depth 0, and the current UTC time.</returns>
+    /// <remarks>
+    /// Construct the update with an object initializer instead when a custom
+    /// <see cref="ScopeId"/> or <see cref="Timestamp"/> is needed.
+    /// </remarks>
+    public static ChatProgressUpdate CreateReasoning(string? message = null)
+    {
+        return new ChatProgressUpdate
+        {
+            Kind = ChatProgressKind.Reasoning,
+            Message = message ?? "Reasoning...",
+            ScopeId = ExternalScopeId,
+            Depth = 0,
+            Timestamp = DateTimeOffset.UtcNow,
+        };
+    }
 }

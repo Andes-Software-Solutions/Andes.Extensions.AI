@@ -77,7 +77,7 @@ export interface AssistantActivity {
  * Bind to this and re-render whenever a new snapshot arrives.
  */
 export interface AssistantStatusSnapshot {
-  /** The current request-level status line, such as "Thinking…". */
+  /** The current request-level status line, such as "Reasoning…". */
   assistantStatus?: string;
   /** The overall state of the request. */
   phase: ActivityState;

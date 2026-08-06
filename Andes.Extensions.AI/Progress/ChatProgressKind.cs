@@ -6,14 +6,20 @@ namespace Andes.Extensions.AI;
 public enum ChatProgressKind
 {
     /// <summary>
-    /// The tracked request has started and no work has been forwarded to the inner client yet.
+    /// A request is starting. Never emitted by the middleware; construct one with
+    /// <see cref="ChatProgressUpdate.CreateRequestStarted(string?)"/> to announce your own
+    /// request start outside the tracked pipeline.
     /// </summary>
     RequestStarted = 0,
 
     /// <summary>
-    /// A model turn is beginning; emitted before the first inner call and again after each tool round-trip.
+    /// The model is producing reasoning output. Emitted once per model turn when reasoning content
+    /// (<see cref="Microsoft.Extensions.AI.TextReasoningContent"/>) is detected on the response —
+    /// for example from the OpenAI Responses API. The event never carries the reasoning text
+    /// itself. Also constructible via <see cref="ChatProgressUpdate.CreateReasoning(string?)"/>
+    /// for emission outside the middleware.
     /// </summary>
-    Thinking = 1,
+    Reasoning = 1,
 
     /// <summary>
     /// A tool invocation is starting; the message carries the display header (for example, "Calling GetWeather Tool").

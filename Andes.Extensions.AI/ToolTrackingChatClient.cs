@@ -57,9 +57,6 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
         var tracker = new RequestTracker(_options, GetMetadata(), writer: null);
         ChatOptions? effectiveOptions = WrapTools(options, tracker);
 
-        tracker.EmitRequestStarted();
-        tracker.EmitThinking();
-
         ChatResponse response;
         ToolScope? previous = AmbientScope.Current;
         AmbientScope.Current = tracker.RootScope;
@@ -80,6 +77,13 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
         if (response.Usage is { } usage)
         {
             tracker.RecordAssistantUsage(usage, response.ResponseId, response.ModelId);
+        }
+
+        // Post-hoc parity with the streaming path: turns are indistinguishable in an aggregated
+        // response, so at most one Reasoning event is raised per request, observers-only.
+        if (response.Messages.SelectMany(static message => message.Contents).OfType<TextReasoningContent>().Any())
+        {
+            tracker.OnReasoningDetected();
         }
 
         ChatUsageReport report = tracker.BuildReport();
@@ -112,9 +116,6 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
         });
         var tracker = new RequestTracker(_options, GetMetadata(), channel.Writer);
         ChatOptions? effectiveOptions = WrapTools(options, tracker);
-
-        tracker.EmitRequestStarted();
-        tracker.EmitThinking();
 
         using var pumpCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         CancellationToken pumpToken = pumpCancellation.Token;
@@ -240,6 +241,10 @@ public sealed class ToolTrackingChatClient : DelegatingChatClient
 
                 case FunctionResultContent:
                     sawFunctionResult = true;
+                    break;
+
+                case TextReasoningContent:
+                    tracker.OnReasoningDetected();
                     break;
 
                 default:

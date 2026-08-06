@@ -40,7 +40,7 @@ public class StreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFixtu
             .Single()
             .Report;
 
-        Assert.Equal(ChatProgressKind.RequestStarted, progress[0].Kind);
+        Assert.DoesNotContain(progress, update => update.Kind == ChatProgressKind.RequestStarted);
         Assert.Contains(progress, update => update.Kind == ChatProgressKind.ToolInvoking && update.ToolName == "GetCurrentTime");
         Assert.Contains(progress, update => update.Kind == ChatProgressKind.ToolProgress && update.Message == "Formatting time...");
         Assert.Contains(progress, update => update.Kind == ChatProgressKind.ToolCompleted);

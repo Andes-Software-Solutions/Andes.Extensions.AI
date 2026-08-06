@@ -13,7 +13,7 @@ namespace Andes.Extensions.AI;
 public sealed record AssistantStatusSnapshot
 {
     /// <summary>
-    /// Gets the current request-level status line, such as "Thinking…", or <see langword="null"/>
+    /// Gets the current request-level status line, such as "Reasoning…", or <see langword="null"/>
     /// before the first status arrives.
     /// </summary>
     public string? AssistantStatus { get; init; }
