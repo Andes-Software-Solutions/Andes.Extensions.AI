@@ -19,9 +19,13 @@ public class ResponsesStreamingIntegrationTests(AzureOpenAIFixture fixture) : IC
         Skip.IfNot(_fixture.IsResponsesConfigured, AzureOpenAIFixture.ResponsesSkipReason);
 
         IChatClient client = CreateResponsesPipeline();
+        // Full output maps to Responses summary verbosity "detailed". Not Summary: M.E.AI maps it
+        // to "concise", which gpt-5-series deployments reject (supported: auto, detailed) — no
+        // summaries would stream and detection would never fire. No Effort override: ExtraHigh
+        // maps to "xhigh", accepted only by gpt-5.1+.
         var options = new ChatOptions
         {
-            Reasoning = new ReasoningOptions { Output = ReasoningOutput.Summary },
+            Reasoning = new ReasoningOptions { Output = ReasoningOutput.Full },
         };
 
         var updates = new List<ChatResponseUpdate>();
@@ -32,7 +36,7 @@ public class ResponsesStreamingIntegrationTests(AzureOpenAIFixture fixture) : IC
             updates.Add(update);
         }
 
-        List<ChatProgressUpdate> progress = updates
+        var progress = updates
             .SelectMany(update => update.Contents)
             .OfType<ChatProgressContent>()
             .Select(content => content.Progress)
@@ -43,7 +47,7 @@ public class ResponsesStreamingIntegrationTests(AzureOpenAIFixture fixture) : IC
             .Single()
             .Report;
 
-        Assert.DoesNotContain(progress, update => update.Kind == ChatProgressKind.RequestStarted);
+        Assert.DoesNotContain(progress, update => update.Kind == ChatProgressKind.Custom);
         Assert.True(report.AssistantUsage.TotalTokenCount > 0, "The assistant should report token usage.");
         Assert.NotEmpty(string.Concat(updates.Select(update => update.Text)));
 
@@ -59,6 +63,14 @@ public class ResponsesStreamingIntegrationTests(AzureOpenAIFixture fixture) : IC
         int reasoningStatusIndex = IndexOfProgress(updates, ChatProgressKind.Reasoning);
         Assert.True(reasoningStatusIndex < reasoningContentIndex,
             $"The Reasoning status (index {reasoningStatusIndex}) must precede the reasoning content (index {reasoningContentIndex}).");
+
+        // Ordering rather than counts: real turn structure varies by deployment. Every detected
+        // reasoning burst must be closed by a measured completion after it.
+        ChatProgressUpdate completed = Assert.Single(progress, update => update.Kind == ChatProgressKind.ReasoningCompleted);
+        Assert.NotNull(completed.Duration);
+        int completedStatusIndex = IndexOfProgress(updates, ChatProgressKind.ReasoningCompleted);
+        Assert.True(reasoningStatusIndex < completedStatusIndex,
+            $"The Reasoning status (index {reasoningStatusIndex}) must precede its completion (index {completedStatusIndex}).");
     }
 
     private IChatClient CreateResponsesPipeline()

@@ -20,7 +20,7 @@ public static class ChatProgressUpdateExtensions
     /// <code language="csharp">
     /// async IAsyncEnumerable&lt;ChatResponseUpdate&gt; StreamTurn()
     /// {
-    ///     yield return ChatProgressUpdate.CreateRequestStarted().ToResponseUpdate();
+    ///     yield return ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate();
     ///
     ///     await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(history, options))
     ///     {

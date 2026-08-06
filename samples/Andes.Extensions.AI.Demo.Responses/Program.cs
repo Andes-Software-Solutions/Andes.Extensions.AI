@@ -10,7 +10,7 @@ using Spectre.Console;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-AzureOpenAISettings settings = AzureOpenAISettings.Load();
+var settings = AzureOpenAISettings.Load();
 if (!settings.IsConfigured)
 {
     AnsiConsole.Write(new Panel(new Markup(
@@ -38,11 +38,15 @@ IChatClient client = new OpenAIClient(
     .UseFunctionInvocation()
     .Build();
 
-// Summary output is what streams back as TextReasoningContent — the trigger for the middleware's
-// Reasoning status. No Temperature: reasoning models reject non-default values.
+// Reasoning summaries stream back as TextReasoningContent — the trigger for the middleware's
+// Reasoning status. Full output maps to Responses summary verbosity "detailed". Not Summary:
+// M.E.AI maps it to "concise", which gpt-5-series deployments reject (supported: auto,
+// detailed) — no summaries stream and the Reasoning status never fires. No Effort override:
+// ExtraHigh maps to "xhigh", accepted only by gpt-5.1+. No Temperature: reasoning models
+// reject non-default values.
 var chatOptions = new ChatOptions
 {
-    Reasoning = new ReasoningOptions { Output = ReasoningOutput.Summary },
+    Reasoning = new ReasoningOptions { Output = ReasoningOutput.Full },
     Tools =
     [
         AIFunctionFactory.Create(ResponsesDemoTools.GetWeather),
@@ -51,7 +55,8 @@ var chatOptions = new ChatOptions
 };
 
 AnsiConsole.Write(new Rule("[bold]Andes.Extensions.AI[/] [dim]responses demo[/]").LeftJustified());
-AnsiConsole.MarkupLine("[dim]The Responses API pipeline: watch the header switch to \"Reasoning...\" as summaries stream.[/]");
+AnsiConsole.MarkupLine("[dim]The Responses API pipeline: the header flips \"Reasoning...\" → \"Reasoning completed\" as summaries stream,[/]");
+AnsiConsole.MarkupLine("[dim]and the final frame keeps the full reasoning (with the measured time), the tool calls, and the answer.[/]");
 AnsiConsole.MarkupLine("[dim]Try:[/]  [italic]Get the weather in Quito, then convert the high to Fahrenheit.[/]");
 AnsiConsole.MarkupLine("[dim]     [/] [italic]What is the sum of the first ten prime numbers? Reason it out.[/]");
 AnsiConsole.MarkupLine("[dim]Press Enter on an empty line (or type 'exit') to quit.[/]");
@@ -76,10 +81,10 @@ while (true)
     async IAsyncEnumerable<ChatResponseUpdate> StreamTurn(
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // The middleware no longer auto-emits request-start statuses — the app owns them.
-        // Prepended outside the recording loop, the status drives the Live header immediately
-        // without ever entering the chat history or the usage report.
-        yield return ChatProgressUpdate.CreateRequestStarted().ToResponseUpdate();
+        // The middleware never emits request-start statuses — the app owns them via the Custom
+        // kind. Prepended outside the recording loop, the status drives the Live header
+        // immediately without ever entering the chat history or the usage report.
+        yield return ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate();
 
         await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(history, chatOptions, cancellationToken))
         {
@@ -121,12 +126,22 @@ while (true)
             await ConsumeAsync(render: null);
         }
 
-        // The last snapshot already carries the completed phase and total usage from the
-        // trailing Finished event; see the main Demo's FinalSnapshot for the report-merge
-        // pattern that adds per-activity token usage.
+        // The last snapshot already carries the completed phase, the full reasoning text, and
+        // total usage. The recorded raw updates additionally carry the middleware's
+        // ReasoningCompleted statuses — summing their Duration (one per model turn) gives the
+        // total time the model spent reasoning, shown on the final frame's reasoning panel.
         if (last is not null)
         {
-            AnsiConsole.Write(StatusRenderer.RenderFinal(last));
+            TimeSpan? reasoningDuration = updates
+                .SelectMany(update => update.Contents)
+                .OfType<ChatProgressContent>()
+                .Select(content => content.Progress)
+                .Where(progress => progress.Kind == ChatProgressKind.ReasoningCompleted)
+                .Aggregate(
+                    default(TimeSpan?),
+                    (total, progress) => progress.Duration is { } duration ? (total ?? TimeSpan.Zero) + duration : total);
+
+            AnsiConsole.Write(StatusRenderer.RenderFinal(last, reasoningDuration));
         }
 
         // Strip only the synthetic progress/usage content before history re-enters the next

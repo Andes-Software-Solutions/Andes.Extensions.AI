@@ -14,8 +14,8 @@ Add one line to your pipeline and get:
 
 - **Token usage tracking** — input/output/total tokens for the main assistant, per model turn, and attributed to each tool call (including LLM calls nested inside tools), rolled up into a `ChatUsageReport`.
 - **Streaming progress statuses** — synthetic `ChatProgressContent` updates interleaved into the live stream so your UI can show "Calling GetWeather Tool", sub-statuses reported from inside the tool ("Extracting…", "Processing…"), and completion — while the model and tools are still working.
-- **Reasoning detection** — when the model streams reasoning content (`TextReasoningContent`, e.g. via the OpenAI Responses API), a `Reasoning` status is emitted once per model turn — truthful, detection-driven, and never carrying the reasoning text itself.
-- **Developer-owned request statuses** — the middleware doesn't invent request-level statuses; construct your own with `ChatProgressUpdate.CreateRequestStarted()` / `CreateReasoning()` and interleave them with `ToResponseUpdate()`.
+- **Reasoning detection** — when the model streams reasoning content (`TextReasoningContent`, e.g. via the OpenAI Responses API), a `Reasoning` status is emitted once per model turn and a matching `ReasoningCompleted` closes it when the answer or the next tool call starts, carrying the elapsed reasoning time — truthful, detection-driven, and never carrying the reasoning text itself.
+- **Developer-owned request statuses** — the middleware doesn't invent request-level statuses; construct your own with `ChatProgressUpdate.CreateCustom("Starting request")` and interleave them with `ToResponseUpdate()`.
 - **Out-of-band observers** — implement `IChatProgressObserver` to receive the same events and the final report without parsing the stream.
 - **Privacy by default** — progress events never carry prompt content, tool arguments, or tool results unless explicitly opted in.
 
@@ -78,13 +78,13 @@ ChatResponse response = updates.ToChatResponse().StripProgressContent();
 
 ### Emit your own statuses
 
-The middleware only reports what it can observe — tool activity, detected reasoning, completion. Request-level statuses like "Starting request" are yours to send: create them with the public factories and interleave them into whatever stream your UI consumes, in the exact shape the middleware itself emits:
+The middleware only reports what it can observe — tool activity, detected reasoning, completion. Request-level statuses like "Starting request" are yours to send: create them with `ChatProgressUpdate.CreateCustom(...)` and interleave them into whatever stream your UI consumes, in the exact shape the middleware itself emits:
 
 ```csharp
 async IAsyncEnumerable<ChatResponseUpdate> StreamTurn()
 {
     // Shows in the UI before the first tracked event arrives.
-    yield return ChatProgressUpdate.CreateRequestStarted().ToResponseUpdate();
+    yield return ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate();
 
     await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(history, chatOptions))
     {
@@ -93,7 +93,7 @@ async IAsyncEnumerable<ChatResponseUpdate> StreamTurn()
 }
 ```
 
-`CreateReasoning()` works the same way, and both accept a custom message. The updates are stamped with the well-known `ChatProgressUpdate.ExternalScopeId`, so they never collide with the middleware's own scopes.
+The message is required and entirely yours — the middleware never emits a `Custom` status itself. The updates are stamped with the well-known `ChatProgressUpdate.ExternalScopeId`, so they never collide with the middleware's own scopes.
 
 ## MCP tools
 

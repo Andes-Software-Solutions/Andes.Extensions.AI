@@ -21,6 +21,7 @@ export type AssistantUiEventKind =
   | "ActivityCompleted"
   | "ActivityFailed"
   | "TextDelta"
+  | "ReasoningDelta"
   | "Finished";
 
 /** The lifecycle state of the request or one of its activities. */
@@ -85,6 +86,8 @@ export interface AssistantStatusSnapshot {
   activities: AssistantActivity[];
   /** The assistant's answer text accumulated so far. */
   text?: string;
+  /** The model's reasoning summary text accumulated so far, when streamed. */
+  reasoningText?: string;
   /** The total token usage for the request, set once it finishes. */
   usage?: UsageSummary;
 }
@@ -116,7 +119,7 @@ export interface AssistantUiEvent {
   progressTotal?: number;
   /** The elapsed seconds for a completion event, or the request duration for "Finished". */
   durationSeconds?: number;
-  /** The answer text chunk for a "TextDelta" event. */
+  /** The answer text chunk for a "TextDelta" event, or the reasoning summary chunk for "ReasoningDelta". */
   text?: string;
   /** The token usage for a "Finished" event. */
   usage?: UsageSummary;
@@ -186,6 +189,9 @@ export function foldAssistantEvents(
 
     case "TextDelta":
       return { ...snapshot, text: (snapshot.text ?? "") + (event.text ?? "") };
+
+    case "ReasoningDelta":
+      return { ...snapshot, reasoningText: (snapshot.reasoningText ?? "") + (event.text ?? "") };
 
     case "Finished":
       return { ...snapshot, phase: "Completed", usage: event.usage };

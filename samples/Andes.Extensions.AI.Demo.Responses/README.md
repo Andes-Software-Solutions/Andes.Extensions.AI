@@ -1,15 +1,16 @@
 # Andes.Extensions.AI Responses Demo
 
-An interactive console chat like the [main demo](../Andes.Extensions.AI.Demo/README.md), but built on the **Azure OpenAI Responses API** instead of Chat Completions — the pipeline where the core package's detection-driven **`Reasoning` status** comes alive. Every turn streams through `ToStatusSnapshotsAsync()` and renders live with [Spectre.Console](https://spectreconsole.net/); while the model works through its hidden reasoning, the header switches to "Reasoning..." the moment reasoning summaries start streaming. The project is intentionally not packable (`samples/Directory.Build.props` sets `IsPackable=false`) — it never ships to NuGet.
+An interactive console chat like the [main demo](../Andes.Extensions.AI.Demo/README.md), but built on the **Azure OpenAI Responses API** instead of Chat Completions — the pipeline where the core package's detection-driven **`Reasoning` status** comes alive. Every turn streams through `ToStatusSnapshotsAsync()` and renders live with [Spectre.Console](https://spectreconsole.net/); while the model works through its hidden reasoning, the header switches to "Reasoning..." the moment reasoning summaries start streaming — and flips to "Reasoning completed" the moment the answer (or the next tool call) starts. The project is intentionally not packable (`samples/Directory.Build.props` sets `IsPackable=false`) — it never ships to NuGet.
 
 ## What it demonstrates
 
 | Feature | Where |
 | --- | --- |
 | Responses API with **stable packages only**: the stable `Azure.AI.OpenAI` client has no Responses surface, so the plain `OpenAIClient` (stable `OpenAI` 2.12+) targets Azure's OpenAI-v1-compatible endpoint (`https://{resource}.openai.azure.com/openai/v1`) and `GetResponsesClient().AsIChatClient(deployment)` adapts it to `IChatClient` | `Program.cs` |
-| Requesting reasoning summaries provider-agnostically with `ChatOptions.Reasoning = new ReasoningOptions { Output = ReasoningOutput.Summary }` — the summaries stream back as `TextReasoningContent` | `Program.cs` |
-| The middleware's detection-driven `Reasoning` status: emitted once per model turn when reasoning content is detected, re-armed after each tool round-trip — no synthetic "Thinking" guesses | core `ToolTrackingChatClient` (just observe the header) |
-| A developer-emitted request status: the middleware no longer auto-announces request start, so the app prepends `ChatProgressUpdate.CreateRequestStarted().ToResponseUpdate()` to the stream the renderer consumes | `Program.cs` (`StreamTurn`) |
+| Requesting reasoning summaries provider-agnostically with `ChatOptions.Reasoning = new ReasoningOptions { Output = ReasoningOutput.Full }` — the summaries stream back as `TextReasoningContent`. `Full` maps to the Responses summary verbosity "detailed"; `Summary` would map to "concise", which gpt-5-series deployments reject (supported: auto, detailed), so no summaries would stream | `Program.cs` |
+| The middleware's detection-driven `Reasoning` status and its `ReasoningCompleted` close: emitted once per model turn when reasoning content is detected, closed (with the elapsed reasoning time) when the answer or the next tool call starts, re-armed after each tool round-trip — no synthetic "Thinking" guesses | core `ToolTrackingChatClient` (just observe the header) |
+| A developer-emitted request status: the middleware no longer auto-announces request start, so the app prepends `ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate()` to the stream the renderer consumes | `Program.cs` (`StreamTurn`) |
+| The model's reasoning summary text, live and persistent: `ReasoningDelta` events accumulate into `AssistantStatusSnapshot.ReasoningText`; the Live frame shows the last six lines in a dimmed "reasoning" panel, and the final frame keeps the full text with the total reasoning time (summed from the `ReasoningCompleted` statuses' `Duration`) in the panel header | `StatusRenderer.cs` + `Program.cs` |
 | Local function tools reporting sub-statuses with numeric progress via `ChatProgress.Report(status, progress, progressTotal)` | `ResponsesDemoTools.cs` |
 | `ToStatusSnapshotsAsync()` → `AssistantStatusSnapshot` → Spectre.Console `Live` rendering | `StatusRenderer.cs` + `Program.cs` |
 
@@ -56,17 +57,19 @@ Try the prompts printed at startup:
 
 > Get the weather in Quito, then convert the high to Fahrenheit.
 
-A tool loop over the Responses API: the header shows "Reasoning..." while the model plans each call, then the `fn` activity cards stream their numeric sub-status progress.
+A tool loop over the Responses API: the header shows "Reasoning..." while the model plans each call and flips to "Reasoning completed" as the call starts, then the `fn` activity cards stream their numeric sub-status progress.
 
 > What is the sum of the first ten prime numbers? Reason it out.
 
-A pure reasoning turn — no tools, just the detection-driven status followed by the streamed answer.
+A pure reasoning turn — no tools, just the detection-driven status pair ("Reasoning..." flips to "Reasoning completed" as the answer begins) followed by the streamed answer.
 
 Exit with an empty line, `exit`, or `quit`. In a non-interactive console (piped input or redirected output — scripts, CI) the Spectre `Live` region is skipped and only the persistent final frame of each turn is rendered.
 
 ## How it fits together
 
-`Program.cs` builds the pipeline with the one ordering invariant: `UseToolTracking()` **before** `UseFunctionInvocation()`. The stream tee prepends a developer-emitted `RequestStarted` status outside the recording loop, so the Live header lights up immediately while the synthetic update never enters the history or the usage report.
+`Program.cs` builds the pipeline with the one ordering invariant: `UseToolTracking()` **before** `UseFunctionInvocation()`. The stream tee prepends a developer-emitted `Custom` status ("Starting request") outside the recording loop, so the Live header lights up immediately while the synthetic update never enters the history or the usage report.
+
+While the model reasons, the summary text streams in as `ReasoningDelta` events and accumulates into `AssistantStatusSnapshot.ReasoningText`; the Live frame shows its last six lines in a dimmed "reasoning" panel beneath the header, and the persistent final frame keeps the **full** reasoning text alongside the tool-call cards and the answer. The final panel's header also shows the total time the model spent reasoning — summed from the `ChatProgressKind.ReasoningCompleted` statuses (one per model turn) recorded in the raw update stream, each carrying the middleware-measured `Duration`.
 
 When history re-enters the next request, only the synthetic progress/usage content is stripped (`StripProgressContent()`). `TextReasoningContent` is deliberately kept: the Responses API expects prior reasoning items to be replayed across tool round-trips and follow-up turns.
 

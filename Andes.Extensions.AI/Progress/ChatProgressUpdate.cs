@@ -12,7 +12,7 @@ public sealed class ChatProgressUpdate
 {
     /// <summary>
     /// The well-known scope identifier stamped on updates created outside a tracked request via
-    /// <see cref="CreateRequestStarted(string?)"/> and <see cref="CreateReasoning(string?)"/>.
+    /// <see cref="CreateCustom(string)"/>.
     /// The middleware's own per-request identifiers ("scope-1", "scope-2", …) never collide with it.
     /// </summary>
     public const string ExternalScopeId = "scope-external";
@@ -74,7 +74,10 @@ public sealed class ChatProgressUpdate
     /// <summary>
     /// Gets the elapsed duration for completion events
     /// (<see cref="ChatProgressKind.ToolCompleted"/>, <see cref="ChatProgressKind.ToolFailed"/>,
-    /// and <see cref="ChatProgressKind.RequestCompleted"/>).
+    /// <see cref="ChatProgressKind.ReasoningCompleted"/>, and
+    /// <see cref="ChatProgressKind.RequestCompleted"/>). For a reasoning completion it measures
+    /// first detection to the first non-reasoning content of the turn (or the end of the stream),
+    /// and is <see langword="null"/> on the non-streaming post-hoc mirror.
     /// </summary>
     public TimeSpan? Duration { get; init; }
 
@@ -102,49 +105,32 @@ public sealed class ChatProgressUpdate
     public double? ProgressTotal { get; init; }
 
     /// <summary>
-    /// Creates a request-level <see cref="ChatProgressKind.RequestStarted"/> update for emitting
-    /// outside the middleware — for example, prepended to the update stream a UI consumes so a
-    /// status line shows before the first tracked event arrives.
+    /// Creates a request-level <see cref="ChatProgressKind.Custom"/> update carrying an
+    /// application-supplied status message, for emitting outside the middleware — for example,
+    /// prepended to the update stream a UI consumes so a status line shows before the first
+    /// tracked event arrives.
     /// </summary>
-    /// <param name="message">The status text, or <see langword="null"/> to use "Starting request".</param>
+    /// <param name="message">The status text.</param>
     /// <returns>An update stamped with <see cref="ExternalScopeId"/>, depth 0, and the current UTC time.</returns>
     /// <remarks>
     /// The middleware never emits this kind itself. Construct the update with an object initializer
     /// instead when a custom <see cref="ScopeId"/> or <see cref="Timestamp"/> is needed.
     /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="message"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="message"/> is empty.</exception>
     /// <example>
     /// <code language="csharp">
-    /// ChatResponseUpdate started = ChatProgressUpdate.CreateRequestStarted().ToResponseUpdate();
+    /// ChatResponseUpdate started = ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate();
     /// </code>
     /// </example>
-    public static ChatProgressUpdate CreateRequestStarted(string? message = null)
+    public static ChatProgressUpdate CreateCustom(string message)
     {
-        return new ChatProgressUpdate
-        {
-            Kind = ChatProgressKind.RequestStarted,
-            Message = message ?? "Starting request",
-            ScopeId = ExternalScopeId,
-            Depth = 0,
-            Timestamp = TimeProvider.System.GetUtcNow(),
-        };
-    }
+        ArgumentException.ThrowIfNullOrEmpty(message);
 
-    /// <summary>
-    /// Creates a request-level <see cref="ChatProgressKind.Reasoning"/> update for emitting outside
-    /// the middleware, mirroring the event the middleware raises when it detects reasoning content.
-    /// </summary>
-    /// <param name="message">The status text, or <see langword="null"/> to use "Reasoning...".</param>
-    /// <returns>An update stamped with <see cref="ExternalScopeId"/>, depth 0, and the current UTC time.</returns>
-    /// <remarks>
-    /// Construct the update with an object initializer instead when a custom
-    /// <see cref="ScopeId"/> or <see cref="Timestamp"/> is needed.
-    /// </remarks>
-    public static ChatProgressUpdate CreateReasoning(string? message = null)
-    {
         return new ChatProgressUpdate
         {
-            Kind = ChatProgressKind.Reasoning,
-            Message = message ?? "Reasoning...",
+            Kind = ChatProgressKind.Custom,
+            Message = message,
             ScopeId = ExternalScopeId,
             Depth = 0,
             Timestamp = TimeProvider.System.GetUtcNow(),

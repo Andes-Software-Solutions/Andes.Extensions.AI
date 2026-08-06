@@ -50,6 +50,11 @@ AIFunction packingAgent = DemoAgents.CreatePackingAgent(settings).WithTracking()
 // No Temperature: reasoning-model deployments reject non-default values.
 var chatOptions = new ChatOptions
 {
+    Reasoning = new ReasoningOptions
+    {
+        Effort = ReasoningEffort.ExtraHigh,
+        Output = ReasoningOutput.Full,
+    },
     Tools =
     [
         AIFunctionFactory.Create(DemoTools.GetWeather),
@@ -86,10 +91,10 @@ while (true)
     async IAsyncEnumerable<ChatResponseUpdate> StreamTurn(
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // The middleware no longer auto-emits request-start statuses — the app owns them.
-        // Prepended outside the recording loop, the status drives the Live header immediately
-        // without ever entering the chat history or the usage report.
-        yield return ChatProgressUpdate.CreateRequestStarted().ToResponseUpdate();
+        // The middleware never emits request-start statuses — the app owns them via the Custom
+        // kind. Prepended outside the recording loop, the status drives the Live header
+        // immediately without ever entering the chat history or the usage report.
+        yield return ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate();
 
         await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(history, chatOptions, cancellationToken))
         {

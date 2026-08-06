@@ -25,7 +25,7 @@ public class NonStreamingTests
 
         List<ChatProgressKind> kinds = observer.Updates.Select(update => update.Kind).ToList();
         Assert.Equal(ChatProgressKind.ToolInvoking, kinds[0]);
-        Assert.DoesNotContain(ChatProgressKind.RequestStarted, kinds);
+        Assert.DoesNotContain(ChatProgressKind.Custom, kinds);
         Assert.DoesNotContain(ChatProgressKind.Reasoning, kinds);
         Assert.Contains(ChatProgressKind.ToolProgress, kinds);
         Assert.Contains(ChatProgressKind.ToolCompleted, kinds);

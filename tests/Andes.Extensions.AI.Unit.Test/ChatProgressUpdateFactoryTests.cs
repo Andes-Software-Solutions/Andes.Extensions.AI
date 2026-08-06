@@ -5,55 +5,35 @@ namespace Andes.Extensions.AI.Unit.Test;
 public class ChatProgressUpdateFactoryTests
 {
     [Fact]
-    public void CreateRequestStarted_Default_PopulatesWellKnownFields()
+    public void CreateCustom_Message_PopulatesWellKnownFields()
     {
         DateTimeOffset before = DateTimeOffset.UtcNow;
-        ChatProgressUpdate update = ChatProgressUpdate.CreateRequestStarted();
+        ChatProgressUpdate update = ChatProgressUpdate.CreateCustom("Warming up…");
         DateTimeOffset after = DateTimeOffset.UtcNow;
 
-        Assert.Equal(ChatProgressKind.RequestStarted, update.Kind);
-        Assert.Equal("Starting request", update.Message);
-        Assert.Equal(ChatProgressUpdate.ExternalScopeId, update.ScopeId);
-        Assert.Equal(0, update.Depth);
-        Assert.InRange(update.Timestamp, before, after);
-    }
-
-    [Fact]
-    public void CreateRequestStarted_CustomMessage_UsesIt()
-    {
-        ChatProgressUpdate update = ChatProgressUpdate.CreateRequestStarted("Warming up…");
-
-        Assert.Equal(ChatProgressKind.RequestStarted, update.Kind);
+        Assert.Equal(ChatProgressKind.Custom, update.Kind);
         Assert.Equal("Warming up…", update.Message);
-    }
-
-    [Fact]
-    public void CreateReasoning_Default_PopulatesWellKnownFields()
-    {
-        DateTimeOffset before = DateTimeOffset.UtcNow;
-        ChatProgressUpdate update = ChatProgressUpdate.CreateReasoning();
-        DateTimeOffset after = DateTimeOffset.UtcNow;
-
-        Assert.Equal(ChatProgressKind.Reasoning, update.Kind);
-        Assert.Equal("Reasoning...", update.Message);
         Assert.Equal(ChatProgressUpdate.ExternalScopeId, update.ScopeId);
         Assert.Equal(0, update.Depth);
         Assert.InRange(update.Timestamp, before, after);
     }
 
     [Fact]
-    public void CreateReasoning_CustomMessage_UsesIt()
+    public void CreateCustom_NullMessage_Throws()
     {
-        ChatProgressUpdate update = ChatProgressUpdate.CreateReasoning("Pondering deeply…");
+        Assert.Throws<ArgumentNullException>(() => ChatProgressUpdate.CreateCustom(null!));
+    }
 
-        Assert.Equal(ChatProgressKind.Reasoning, update.Kind);
-        Assert.Equal("Pondering deeply…", update.Message);
+    [Fact]
+    public void CreateCustom_EmptyMessage_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => ChatProgressUpdate.CreateCustom(string.Empty));
     }
 
     [Fact]
     public void ToResponseUpdate_Always_WrapsSingleProgressContent()
     {
-        ChatProgressUpdate update = ChatProgressUpdate.CreateRequestStarted();
+        ChatProgressUpdate update = ChatProgressUpdate.CreateCustom("Starting request");
 
         ChatResponseUpdate wrapped = update.ToResponseUpdate();
 

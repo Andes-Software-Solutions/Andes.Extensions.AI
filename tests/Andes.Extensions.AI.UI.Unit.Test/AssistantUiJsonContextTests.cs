@@ -41,6 +41,29 @@ public class AssistantUiJsonContextTests
         Assert.DoesNotContain("MCP MCP", json);
         Assert.DoesNotContain("\"usage\"", json);
         Assert.DoesNotContain("\"text\"", json);
+        Assert.DoesNotContain("\"reasoningText\"", json);
+    }
+
+    [Fact]
+    public void Serialize_SnapshotWithReasoningText_EmitsCamelCaseProperty()
+    {
+        var snapshot = new AssistantStatusSnapshot
+        {
+            Phase = ActivityState.Running,
+            ReasoningText = "planning the call",
+        };
+        var uiEvent = new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.ReasoningDelta,
+            Text = "planning the call",
+        };
+
+        string snapshotJson = JsonSerializer.Serialize(snapshot, AssistantUiJsonContext.Default.AssistantStatusSnapshot);
+        string eventJson = JsonSerializer.Serialize(uiEvent, AssistantUiJsonContext.Default.AssistantUiEvent);
+
+        Assert.Contains("\"reasoningText\":\"planning the call\"", snapshotJson);
+        Assert.Contains("\"kind\":\"ReasoningDelta\"", eventJson);
+        Assert.Contains("\"text\":\"planning the call\"", eventJson);
     }
 
     [Fact]

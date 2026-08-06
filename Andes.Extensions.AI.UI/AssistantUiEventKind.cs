@@ -37,6 +37,13 @@ public enum AssistantUiEventKind
     TextDelta,
 
     /// <summary>
+    /// A chunk of the model's reasoning summary text, carried by <see cref="AssistantUiEvent.Text"/>.
+    /// Sourced from in-band <see cref="Microsoft.Extensions.AI.TextReasoningContent"/> on the tracked
+    /// stream; encrypted-only reasoning items (empty text) are never surfaced.
+    /// </summary>
+    ReasoningDelta,
+
+    /// <summary>
     /// The request finished; the total token <see cref="AssistantUiEvent.Usage"/> is available.
     /// </summary>
     Finished,

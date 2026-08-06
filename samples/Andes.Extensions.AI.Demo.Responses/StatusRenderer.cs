@@ -12,11 +12,18 @@ internal static class StatusRenderer
 {
     public static IRenderable RenderLive(AssistantStatusSnapshot snapshot)
     {
-        // The Live region cannot scroll, so only the tail of the streamed answer is shown
-        // while working; RenderFinal prints the full text once the turn completes.
+        // The Live region cannot scroll, so only the tails of the streamed reasoning and answer
+        // are shown while working; RenderFinal prints both in full once the turn completes.
         const int liveTextTailLines = 10;
+        const int liveReasoningTailLines = 6;
 
         var rows = new List<IRenderable> { Header(snapshot) };
+
+        if (!string.IsNullOrEmpty(snapshot.ReasoningText))
+        {
+            rows.Add(ReasoningPanel(TailLines(snapshot.ReasoningText, liveReasoningTailLines)));
+        }
+
         AppendActivities(rows, snapshot);
         if (!string.IsNullOrEmpty(snapshot.Text))
         {
@@ -26,9 +33,18 @@ internal static class StatusRenderer
         return new Rows(rows);
     }
 
-    public static IRenderable RenderFinal(AssistantStatusSnapshot snapshot)
+    public static IRenderable RenderFinal(AssistantStatusSnapshot snapshot, TimeSpan? reasoningDuration = null)
     {
         var rows = new List<IRenderable>();
+
+        // The full reasoning persists in the final frame, first — it happened before the tool
+        // calls and the answer. The header carries the middleware-measured reasoning time when
+        // the ReasoningCompleted statuses supplied one.
+        if (!string.IsNullOrEmpty(snapshot.ReasoningText))
+        {
+            rows.Add(ReasoningPanel(snapshot.ReasoningText, reasoningDuration));
+        }
+
         AppendActivities(rows, snapshot);
         if (!string.IsNullOrEmpty(snapshot.Text))
         {
@@ -48,6 +64,12 @@ internal static class StatusRenderer
         var rows = new List<IRenderable>();
         if (snapshot is not null)
         {
+            // Whatever the model reasoned before the failure is often the best clue — keep it.
+            if (!string.IsNullOrEmpty(snapshot.ReasoningText))
+            {
+                rows.Add(ReasoningPanel(snapshot.ReasoningText));
+            }
+
             // Request-level failure is reported out-of-band (observers only), so the last
             // snapshot still says Running — flip the running cards to failed for display.
             AppendActivities(rows, snapshot, forceRunningToFailed: true);
@@ -143,6 +165,18 @@ internal static class StatusRenderer
             .Border(BoxBorder.Rounded)
             .BorderColor(Color.Grey)
             .Header("[dim]assistant[/]");
+    }
+
+    private static IRenderable ReasoningPanel(string text, TimeSpan? duration = null)
+    {
+        string header = duration is { } elapsed
+            ? $"[dim]reasoning · {elapsed.TotalSeconds:0.0}s[/]"
+            : "[dim]reasoning[/]";
+
+        return new Panel(new Markup($"[dim italic]{Markup.Escape(text)}[/]"))
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Grey)
+            .Header(header);
     }
 
     private static string TailLines(string text, int maxLines)

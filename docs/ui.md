@@ -69,16 +69,17 @@ AssistantUiEventKind
 ├── ActivityCompleted   — ScopeId targets the activity; DurationSeconds is set
 ├── ActivityFailed      — same as ActivityCompleted, but the activity failed
 ├── TextDelta           — Text is a chunk of the assistant's answer
+├── ReasoningDelta      — Text is a chunk of the model's reasoning summary
 └── Finished            — Usage carries the final token totals; DurationSeconds is the whole request
 ```
 
 `ScopeId`/`ParentScopeId`/`Depth` are carried over unchanged from the core's `ChatProgressUpdate`, so the same tree-reconstruction rules from [Getting started](getting-started.md#consume-streaming-progress) and the [Progress Board example](examples/progress-board.md#the-progress-board-hierarchy-from-the-event-contract) apply here — this contract just makes them serializable.
 
-Every request-level kind collapses to `Status` with the message passed through — the middleware's detected `Reasoning` and final `RequestCompleted`, and equally any update the application constructs itself with `ChatProgressUpdate.CreateRequestStarted()`/`CreateReasoning()` and prepends via `ToResponseUpdate()` ([Getting started](getting-started.md#emit-request-level-statuses-yourself)); the mapper does not care who emitted it. Note that the middleware no longer opens requests with a synthetic status of its own (since core v0.5), so `AssistantStatus` stays `null` until the first request-level event arrives — a UI that wants a status line the instant the request starts prepends its own, exactly as both sample apps do.
+Every request-level kind collapses to `Status` with the message passed through — the middleware's detected `Reasoning`, its closing `ReasoningCompleted` ("Reasoning completed", whose `DurationSeconds` carries the elapsed reasoning time — `ToUiEvent` maps `Duration` generically, so no special-casing was needed), and final `RequestCompleted`, and equally any update the application constructs itself with `ChatProgressUpdate.CreateCustom(...)` and prepends via `ToResponseUpdate()` ([Getting started](getting-started.md#emit-request-level-statuses-yourself)); the mapper does not care who emitted it. The detected `Reasoning` progress event is no exception — it still collapses to a `Status` line ("Reasoning…"), because the progress event never carries the reasoning text; the *text* arrives separately as `ReasoningDelta` events, sourced from the in-band `TextReasoningContent` itself. Note that the middleware no longer opens requests with a synthetic status of its own (since core v0.5), so `AssistantStatus` stays `null` until the first request-level event arrives — a UI that wants a status line the instant the request starts prepends its own, exactly as both sample apps do.
 
 ### `AssistantStatusSnapshot` — the render shape
 
-`AssistantStatusSnapshot` is the folded result: an immutable value with the current `AssistantStatus` line, the overall `Phase` (`ActivityState.Running`/`Completed`/`Failed`), the answer `Text` accumulated so far, the final `Usage`, and — the interesting part — `Activities`, an already-nested `IReadOnlyList<AssistantActivity>`:
+`AssistantStatusSnapshot` is the folded result: an immutable value with the current `AssistantStatus` line, the overall `Phase` (`ActivityState.Running`/`Completed`/`Failed`), the answer `Text` accumulated so far, the model's `ReasoningText` accumulated so far (when the provider streams reasoning summaries — verbatim concatenation across the whole request, including tool round-trips), the final `Usage`, and — the interesting part — `Activities`, an already-nested `IReadOnlyList<AssistantActivity>`:
 
 ```csharp
 public sealed record AssistantActivity
@@ -105,11 +106,11 @@ Four static members turn the tracked, in-band stream into the contract:
 
 | Member | Input | Output |
 | --- | --- | --- |
-| `ToUiEventsAsync(this IAsyncEnumerable<ChatResponseUpdate>, CancellationToken)` | The tracked streaming response | `IAsyncEnumerable<AssistantUiEvent>` — one event per `ChatProgressContent`, one `TextDelta` per non-empty `update.Text`, one final `Finished` from `UsageReportContent` |
+| `ToUiEventsAsync(this IAsyncEnumerable<ChatResponseUpdate>, CancellationToken)` | The tracked streaming response | `IAsyncEnumerable<AssistantUiEvent>` — one event per `ChatProgressContent`, one `ReasoningDelta` per `TextReasoningContent` with non-empty text (encrypted-only reasoning items carry nothing renderable and are skipped), one `TextDelta` per non-empty `update.Text`, one final `Finished` from `UsageReportContent` |
 | `ToStatusSnapshotsAsync(this IAsyncEnumerable<ChatResponseUpdate>, CancellationToken)` | The tracked streaming response | `IAsyncEnumerable<AssistantStatusSnapshot>` — `ToUiEventsAsync` piped through a private `AssistantStatusReducer`, one snapshot per event |
 | `ToUiEvent(this ChatProgressUpdate)` | A single core progress update | The equivalent `AssistantUiEvent` |
 | `ToUsageSummary(this UsageDetails)` | A core usage value | The flattened `UsageSummary` |
-| `ToSnapshot(this ChatUsageReport)` | A completed usage report (for example the non-streaming `ChatResponse.AdditionalProperties` report) | A `Completed`-phase snapshot built directly from the report's `ToolCalls` tree — useful when all you have is the final report, not the live stream |
+| `ToSnapshot(this ChatUsageReport)` | A completed usage report (for example the non-streaming `ChatResponse.AdditionalProperties` report) | A `Completed`-phase snapshot built directly from the report's `ToolCalls` tree — useful when all you have is the final report, not the live stream. It carries no `ReasoningText` (or `Text`): reports contain no model content |
 
 The mapper is where the clean-name design lives: `ToUiEvent` sets `DisplayName = update.ToolSource ?? update.ToolName` — the raw server/agent/function name — never `update.Message`, which is the *composed* header text ("Calling GetWeather Tool", "Calling Andes Test MCP"). `ToSnapshot`'s `ToActivity` helper does the same from a `ToolCallUsage`: `DisplayName = call.Source ?? call.ToolName`. It also recurses `ToolCallUsage.Children`, so nested activities — including the v0.3 satellite child scopes — arrive with their own per-node `Usage`, matching the live tree's shape. See [Clean names, not composed headers](#clean-names-not-composed-headers) for why this matters.
 
@@ -126,7 +127,7 @@ await foreach (AssistantUiEvent uiEvent in events)
 }
 ```
 
-It rebuilds the activity tree the same way the [Progress Board example](examples/progress-board.md#the-progress-board-hierarchy-from-the-event-contract) does: `ActivityStarted` opens a scope and either attaches it under `ParentScopeId` (if that scope is already known) or adds it as a root — a top-level activity's parent is the request root, which has no card. `ActivityProgress` appends a `SubStatus` to the owning scope; `ActivityCompleted`/`ActivityFailed` set `State` and `DurationSeconds`. `TextDelta` accumulates `Text`; `Finished` sets `Phase = Completed` and `Usage`.
+It rebuilds the activity tree the same way the [Progress Board example](examples/progress-board.md#the-progress-board-hierarchy-from-the-event-contract) does: `ActivityStarted` opens a scope and either attaches it under `ParentScopeId` (if that scope is already known) or adds it as a root — a top-level activity's parent is the request root, which has no card. `ActivityProgress` appends a `SubStatus` to the owning scope; `ActivityCompleted`/`ActivityFailed` set `State` and `DurationSeconds`. `TextDelta` accumulates `Text`; `ReasoningDelta` accumulates `ReasoningText`; `Finished` sets `Phase = Completed` and `Usage`.
 
 `ToStatusSnapshotsAsync` already wraps this for you over a live stream — reach for `AssistantStatusReducer` directly only when you're consuming events from somewhere else (deserialized off the wire, replayed from storage, or, in a Blazor WebAssembly app, received over SignalR or fetched as SSE).
 
@@ -163,7 +164,7 @@ The UI contract sidesteps the composition problem entirely instead of patching i
 
 ## Privacy posture
 
-Unchanged from the core: events and snapshots **never carry prompt content, tool arguments, or tool results** — only headers-turned-names, statuses, sub-status text, activity metadata (`ScopeId`, `Kind`, `Source`, timing), and token counts. The mapper reads exclusively from `ChatProgressUpdate`/`ChatUsageReport`, which already enforce this at the core layer (the sole opt-in there remains `ToolTrackingOptions.IncludeToolArguments`, default `false`); this package adds no new opt-in and cannot re-introduce content the core never emitted. See [Architecture: Privacy posture](architecture.md#privacy-posture).
+Unchanged from the core: events and snapshots **never carry prompt content, tool arguments, or tool results** — only headers-turned-names, statuses, sub-status text, activity metadata (`ScopeId`, `Kind`, `Source`, timing), and token counts. Model *outputs* are the deliberate exception, with a clear boundary: the answer text (`TextDelta`/`Text`) and the reasoning summary (`ReasoningDelta`/`ReasoningText`) are sourced only from the in-band content the tracked stream already carries — never from progress metadata, which stays text-free at the core layer. Everything else the mapper reads comes from `ChatProgressUpdate`/`ChatUsageReport`, which already enforce the posture (the sole opt-in there remains `ToolTrackingOptions.IncludeToolArguments`, default `false`); this package adds no new opt-in and cannot re-introduce content the core never emitted. See [Architecture: Privacy posture](architecture.md#privacy-posture).
 
 ## References
 

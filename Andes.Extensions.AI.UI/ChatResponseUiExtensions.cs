@@ -18,8 +18,8 @@ public static class ChatResponseUiExtensions
 {
     /// <summary>
     /// Translates a tracked streaming response into a stream of <see cref="AssistantUiEvent"/>
-    /// deltas — one per progress flush, per answer-text chunk, and one final
-    /// <see cref="AssistantUiEventKind.Finished"/> event.
+    /// deltas — one per progress flush, per answer-text chunk, per reasoning-summary chunk, and
+    /// one final <see cref="AssistantUiEventKind.Finished"/> event.
     /// </summary>
     /// <param name="updates">The tracked streaming response.</param>
     /// <param name="cancellationToken">A token to cancel enumeration.</param>
@@ -53,6 +53,17 @@ public static class ChatResponseUiExtensions
 
                     case UsageReportContent usage:
                         yield return ToFinishedEvent(usage.Report);
+                        break;
+
+                    // Reasoning summary text is model content that already flows in-band; surface it
+                    // as its own delta kind. Encrypted-only items (empty text, ProtectedData set) are
+                    // skipped — they carry nothing renderable.
+                    case TextReasoningContent { Text.Length: > 0 } reasoning:
+                        yield return new AssistantUiEvent
+                        {
+                            Kind = AssistantUiEventKind.ReasoningDelta,
+                            Text = reasoning.Text,
+                        };
                         break;
                 }
             }

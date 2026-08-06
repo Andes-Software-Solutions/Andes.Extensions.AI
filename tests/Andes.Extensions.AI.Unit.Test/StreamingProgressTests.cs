@@ -39,7 +39,7 @@ public class StreamingProgressTests
         Assert.Equal("Calling GetWeather Tool", progress[toolInvoking].Message);
         Assert.Equal("Extracting...", progress[toolProgress].Message);
 
-        Assert.DoesNotContain(ChatProgressKind.RequestStarted, kinds);
+        Assert.DoesNotContain(ChatProgressKind.Custom, kinds);
         Assert.DoesNotContain(ChatProgressKind.Reasoning, kinds);
         Assert.Equal(ChatProgressKind.RequestCompleted, progress[^1].Kind);
         Assert.IsType<UsageReportContent>(updates[^1].Contents.Single());
@@ -63,7 +63,7 @@ public class StreamingProgressTests
 
         Assert.Empty(updates.SelectMany(update => update.Contents).OfType<ChatProgressContent>());
         Assert.NotEmpty(updates.SelectMany(update => update.Contents).OfType<UsageReportContent>());
-        Assert.DoesNotContain(observer.Updates, update => update.Kind == ChatProgressKind.RequestStarted);
+        Assert.DoesNotContain(observer.Updates, update => update.Kind == ChatProgressKind.Custom);
         Assert.Contains(observer.Updates, update => update.Kind == ChatProgressKind.RequestCompleted);
         Assert.NotNull(observer.Report);
     }

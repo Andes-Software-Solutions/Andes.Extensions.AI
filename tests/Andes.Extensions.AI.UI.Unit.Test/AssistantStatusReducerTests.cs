@@ -111,4 +111,50 @@ public class AssistantStatusReducerTests
 
         Assert.Equal("Hello world", snapshot.Text);
     }
+
+    [Fact]
+    public void Apply_ReasoningDelta_AccumulatesReasoningText()
+    {
+        var reducer = new AssistantStatusReducer();
+
+        reducer.Apply(new AssistantUiEvent { Kind = AssistantUiEventKind.ReasoningDelta, Text = "First part. " });
+        AssistantStatusSnapshot snapshot = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.ReasoningDelta,
+            Text = "Second part.",
+        });
+
+        Assert.Equal("First part. Second part.", snapshot.ReasoningText);
+        Assert.Null(snapshot.Text);
+    }
+
+    [Fact]
+    public void Apply_ReasoningDeltaAcrossActivities_KeepsAccumulating()
+    {
+        var reducer = new AssistantStatusReducer();
+
+        reducer.Apply(new AssistantUiEvent { Kind = AssistantUiEventKind.ReasoningDelta, Text = "planning the call" });
+        reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.ActivityStarted,
+            ScopeId = "scope-1",
+            DisplayName = "GetWeather",
+            ToolKind = ToolKind.Function,
+        });
+        reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.ActivityCompleted,
+            ScopeId = "scope-1",
+            DurationSeconds = 0.4,
+        });
+        AssistantStatusSnapshot snapshot = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.ReasoningDelta,
+            Text = "interpreting the result",
+        });
+
+        // Deltas concatenate verbatim across the whole request — no synthetic separators —
+        // matching the TypeScript foldAssistantEvents counterpart exactly.
+        Assert.Equal("planning the callinterpreting the result", snapshot.ReasoningText);
+    }
 }

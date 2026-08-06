@@ -29,7 +29,7 @@ public class StreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFixtu
             updates.Add(update);
         }
 
-        List<ChatProgressUpdate> progress = updates
+        var progress = updates
             .SelectMany(update => update.Contents)
             .OfType<ChatProgressContent>()
             .Select(content => content.Progress)
@@ -40,7 +40,7 @@ public class StreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFixtu
             .Single()
             .Report;
 
-        Assert.DoesNotContain(progress, update => update.Kind == ChatProgressKind.RequestStarted);
+        Assert.DoesNotContain(progress, update => update.Kind == ChatProgressKind.Custom);
         Assert.Contains(progress, update => update.Kind == ChatProgressKind.ToolInvoking && update.ToolName == "GetCurrentTime");
         Assert.Contains(progress, update => update.Kind == ChatProgressKind.ToolProgress && update.Message == "Formatting time...");
         Assert.Contains(progress, update => update.Kind == ChatProgressKind.ToolCompleted);

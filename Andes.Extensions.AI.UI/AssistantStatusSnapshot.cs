@@ -34,6 +34,13 @@ public sealed record AssistantStatusSnapshot
     public string? Text { get; init; }
 
     /// <summary>
+    /// Gets the model's reasoning summary text accumulated so far, when the provider streams
+    /// reasoning content (for example the OpenAI Responses API); otherwise <see langword="null"/>.
+    /// Deltas accumulate verbatim across the whole request, including across tool round-trips.
+    /// </summary>
+    public string? ReasoningText { get; init; }
+
+    /// <summary>
     /// Gets the total token usage for the request, set once it finishes.
     /// </summary>
     public UsageSummary? Usage { get; init; }

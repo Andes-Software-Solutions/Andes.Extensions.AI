@@ -9,7 +9,9 @@ namespace Andes.Extensions.AI;
 /// Fold a sequence of these into an <see cref="AssistantStatusSnapshot"/> with
 /// <see cref="AssistantStatusReducer"/>, or consume them directly. Project them from a tracked chat
 /// stream with <c>ChatResponseUiExtensions.ToUiEventsAsync</c>. Like the core progress contract,
-/// events never carry prompt content, tool arguments, or tool results.
+/// events never carry prompt content, tool arguments, or tool results. Reasoning summary text
+/// appears only on <see cref="AssistantUiEventKind.ReasoningDelta"/> events, sourced from in-band
+/// model content — never from progress metadata.
 /// </remarks>
 public sealed record AssistantUiEvent
 {
@@ -76,7 +78,8 @@ public sealed record AssistantUiEvent
     public double? DurationSeconds { get; init; }
 
     /// <summary>
-    /// Gets the answer text chunk for a <see cref="AssistantUiEventKind.TextDelta"/> event.
+    /// Gets the answer text chunk for a <see cref="AssistantUiEventKind.TextDelta"/> event, or the
+    /// reasoning summary chunk for a <see cref="AssistantUiEventKind.ReasoningDelta"/> event.
     /// </summary>
     public string? Text { get; init; }
 
@@ -87,7 +90,8 @@ public sealed record AssistantUiEvent
 
     /// <summary>
     /// Gets the time at which the underlying progress event was raised. Only meaningful for
-    /// status and activity events; <see cref="AssistantUiEventKind.TextDelta"/> and
+    /// status and activity events; <see cref="AssistantUiEventKind.TextDelta"/>,
+    /// <see cref="AssistantUiEventKind.ReasoningDelta"/>, and
     /// <see cref="AssistantUiEventKind.Finished"/> events, which have no source progress event,
     /// leave it at its default. Consume events in stream order rather than sorting by this value.
     /// </summary>

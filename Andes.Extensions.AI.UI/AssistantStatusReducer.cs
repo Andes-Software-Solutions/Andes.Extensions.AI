@@ -28,6 +28,7 @@ public sealed class AssistantStatusReducer
     private string? _assistantStatus;
     private ActivityState _phase = ActivityState.Running;
     private string? _text;
+    private string? _reasoningText;
     private UsageSummary? _usage;
 
     /// <summary>
@@ -78,6 +79,10 @@ public sealed class AssistantStatusReducer
                 _text = (_text ?? string.Empty) + uiEvent.Text;
                 break;
 
+            case AssistantUiEventKind.ReasoningDelta:
+                _reasoningText = (_reasoningText ?? string.Empty) + uiEvent.Text;
+                break;
+
             case AssistantUiEventKind.Finished:
                 _phase = ActivityState.Completed;
                 _usage = uiEvent.Usage;
@@ -121,6 +126,7 @@ public sealed class AssistantStatusReducer
             Phase = _phase,
             Activities = [.. _roots.Select(root => root.ToImmutable())],
             Text = _text,
+            ReasoningText = _reasoningText,
             Usage = _usage,
         };
     }

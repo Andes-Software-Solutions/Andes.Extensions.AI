@@ -121,7 +121,7 @@ public sealed record TextDelta(string Text) : AssistantUiEvent;
 public sealed record RequestFinished(ChatUsageReport Report) : AssistantUiEvent;
 ```
 
-The service's `IAsyncEnumerable<AssistantUiEvent>` is the **single channel to the UI** — and because it is an ordinary iterator, the app can yield any number of its own "Starting request"-style statuses **before the pipeline streaming even starts**. That matters more than it used to: the middleware never invents request-level statuses (since core v0.5 it emits nothing until it observes something), so app-authored lines like these are the only way the user sees a status before the first tracked event. The first two `yield return`s below run before `GetStreamingResponseAsync` is ever called; the pipeline's in-band events then follow through the same channel. (This service yields its own app-owned records; a consumer reading `ChatResponseUpdate` directly would instead prepend `ChatProgressUpdate.CreateRequestStarted().ToResponseUpdate()` into the stream — see [Getting started](../getting-started.md#emit-request-level-statuses-yourself).)
+The service's `IAsyncEnumerable<AssistantUiEvent>` is the **single channel to the UI** — and because it is an ordinary iterator, the app can yield any number of its own "Starting request"-style statuses **before the pipeline streaming even starts**. That matters more than it used to: the middleware never invents request-level statuses (since core v0.5 it emits nothing until it observes something), so app-authored lines like these are the only way the user sees a status before the first tracked event. The first two `yield return`s below run before `GetStreamingResponseAsync` is ever called; the pipeline's in-band events then follow through the same channel. (This service yields its own app-owned records; a consumer reading `ChatResponseUpdate` directly would instead prepend `ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate()` into the stream — see [Getting started](../getting-started.md#emit-request-level-statuses-yourself).)
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -186,7 +186,7 @@ The board holds no middleware state — it reconstructs the tool-call tree from 
 
 | Event kind | `ScopeId` | `Depth` | Board action |
 | --- | --- | --- | --- |
-| `Reasoning` / `RequestCompleted` — and `RequestStarted`, which only ever arrives [app-emitted](../getting-started.md#emit-request-level-statuses-yourself) | The request root (`ChatProgressUpdate.ExternalScopeId` for app-emitted updates) | 0 | Update the top-level assistant status line |
+| `Reasoning` / `ReasoningCompleted` / `RequestCompleted` — and `Custom`, which only ever arrives [app-emitted](../getting-started.md#emit-request-level-statuses-yourself) | The request root (`ChatProgressUpdate.ExternalScopeId` for app-emitted updates) | 0 | Update the top-level assistant status line |
 | `ToolInvoking` | A fresh scope | parent + 1 | New box (`Title` = the header; `ToolKind`/`ToolName`/`ToolSource` for badges), parented via `ParentScopeId` — a top-level tool's parent is the request root, which has no box, so it becomes a root |
 | `ToolProgress` | **The owning tool's scope** | tool + 1 | Append a subtitle line (`Message`, plus `Progress`/`ProgressTotal` rendered as "2/3") |
 | `ToolCompleted` / `ToolFailed` | The tool's scope | tool | Mark the state, set `Duration` |
@@ -275,7 +275,7 @@ public sealed class ProgressBoard
     {
         switch (update.Kind)
         {
-            case ChatProgressKind.RequestStarted or ChatProgressKind.Reasoning or ChatProgressKind.RequestCompleted:
+            case ChatProgressKind.Custom or ChatProgressKind.Reasoning or ChatProgressKind.ReasoningCompleted or ChatProgressKind.RequestCompleted:
                 AssistantStatus = update.Message;
                 break;
 
