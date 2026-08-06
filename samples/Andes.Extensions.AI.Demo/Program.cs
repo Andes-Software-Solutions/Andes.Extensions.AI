@@ -52,7 +52,6 @@ var chatOptions = new ChatOptions
 {
     Reasoning = new ReasoningOptions
     {
-        Effort = ReasoningEffort.ExtraHigh,
         Output = ReasoningOutput.Full,
     },
     Tools =
