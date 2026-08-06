@@ -16,7 +16,7 @@ This guide covers installation, how classification and the progress bridge work,
 dotnet add package Andes.Extensions.AI.Mcp
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.3.0) and [`ModelContextProtocol.Core`](https://www.nuget.org/packages/ModelContextProtocol.Core) (>= 1.4.1). Apps that build MCP clients or servers with the full `ModelContextProtocol` package are unaffected — the satellite only needs the Core types.
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.5.0) and [`ModelContextProtocol.Core`](https://www.nuget.org/packages/ModelContextProtocol.Core) (>= 2.1.0). Apps that build MCP clients or servers with the full `ModelContextProtocol` package are unaffected — the satellite only needs the Core types.
 
 ## Quickstart
 
@@ -53,14 +53,11 @@ await foreach (var update in client.GetStreamingResponseAsync("prompt", chatOpti
 A typical rendering while a progress-reporting MCP tool runs:
 
 ```text
-[RequestStarted] Starting request
-[Thinking] Thinking...
   [ToolInvoking] Calling GitHub MCP
     [ToolProgress] step 1 of 3
     [ToolProgress] step 2 of 3
     [ToolProgress] step 3 of 3
   [ToolCompleted] search_issues completed
-[Thinking] Thinking...
 [RequestCompleted] Request completed
 ```
 

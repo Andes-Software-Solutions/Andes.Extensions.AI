@@ -18,7 +18,7 @@ This guide covers installation, how classification and usage capture work, the d
 dotnet add package Andes.Extensions.AI.Agent
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.3.0) and [`Microsoft.Agents.AI`](https://www.nuget.org/packages/Microsoft.Agents.AI) (>= 1.15.0, stable).
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.5.0) and [`Microsoft.Agents.AI`](https://www.nuget.org/packages/Microsoft.Agents.AI) (>= 1.17.0, stable).
 
 ## Quickstart
 
@@ -47,13 +47,10 @@ var chatOptions = new ChatOptions { Tools = [weatherAgent.WithTracking()] };
 A typical rendering while the outer model delegates to the agent:
 
 ```text
-[RequestStarted] Starting request
-[Thinking] Thinking...
   [ToolInvoking] Calling Weather Agent
     [ToolProgress] Calling GetWeather Tool
     [ToolProgress] Extracting...
   [ToolCompleted] Weather_Agent completed
-[Thinking] Thinking...
 [RequestCompleted] Request completed
 ```
 

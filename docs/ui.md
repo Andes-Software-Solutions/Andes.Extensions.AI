@@ -16,7 +16,7 @@ This guide covers installation, the two DTO layers, the mapper and reducer, the 
 dotnet add package Andes.Extensions.AI.UI
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.3.0) and `Microsoft.Extensions.AI.Abstractions` — nothing else. The package does not reference the [MCP](mcp.md) or [Agent](agents.md) satellites; it doesn't need to, because `ToolKind` (the `Unknown`/`Function`/`McpTool`/`Agent` badge every activity carries) already lives in core, shared by every satellite.
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.5.0) and `Microsoft.Extensions.AI.Abstractions` — nothing else. The package does not reference the [MCP](mcp.md) or [Agent](agents.md) satellites; it doesn't need to, because `ToolKind` (the `Unknown`/`Function`/`McpTool`/`Agent` badge every activity carries) already lives in core, shared by every satellite.
 
 ## Quickstart
 
@@ -63,7 +63,7 @@ The contract is deliberately split into two shapes, mirroring a common streaming
 
 ```text
 AssistantUiEventKind
-├── Status              — Message is the new request-level status line ("Thinking…")
+├── Status              — Message is the new request-level status line ("Reasoning…")
 ├── ActivityStarted     — ScopeId/ParentScopeId/Depth/ToolKind/DisplayName/Source describe the new card
 ├── ActivityProgress    — ScopeId targets the owning activity; Message/Progress/ProgressTotal are the sub-status
 ├── ActivityCompleted   — ScopeId targets the activity; DurationSeconds is set
@@ -73,6 +73,8 @@ AssistantUiEventKind
 ```
 
 `ScopeId`/`ParentScopeId`/`Depth` are carried over unchanged from the core's `ChatProgressUpdate`, so the same tree-reconstruction rules from [Getting started](getting-started.md#consume-streaming-progress) and the [Progress Board example](examples/progress-board.md#the-progress-board-hierarchy-from-the-event-contract) apply here — this contract just makes them serializable.
+
+Every request-level kind collapses to `Status` with the message passed through — the middleware's detected `Reasoning` and final `RequestCompleted`, and equally any update the application constructs itself with `ChatProgressUpdate.CreateRequestStarted()`/`CreateReasoning()` and prepends via `ToResponseUpdate()` ([Getting started](getting-started.md#emit-request-level-statuses-yourself)); the mapper does not care who emitted it. Note that the middleware no longer opens requests with a synthetic status of its own (since core v0.5), so `AssistantStatus` stays `null` until the first request-level event arrives — a UI that wants a status line the instant the request starts prepends its own, exactly as both sample apps do.
 
 ### `AssistantStatusSnapshot` — the render shape
 
