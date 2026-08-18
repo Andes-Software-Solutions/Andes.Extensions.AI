@@ -16,7 +16,7 @@ public class AssistantUiJsonContextTests
                 new AssistantActivity
                 {
                     ScopeId = "scope-1",
-                    DisplayName = "Andes Test MCP",
+                    DisplayName = "get_forecast",
                     Kind = ToolKind.McpTool,
                     Source = "Andes Test MCP",
                     State = ActivityState.Completed,
@@ -35,7 +35,8 @@ public class AssistantUiJsonContextTests
 
         string json = JsonSerializer.Serialize(snapshot, AssistantUiJsonContext.Default.AssistantStatusSnapshot);
 
-        Assert.Contains("\"displayName\":\"Andes Test MCP\"", json);
+        Assert.Contains("\"displayName\":\"get_forecast\"", json);
+        Assert.Contains("\"source\":\"Andes Test MCP\"", json);
         Assert.Contains("\"kind\":\"McpTool\"", json);
         Assert.Contains("\"activities\":", json);
         Assert.DoesNotContain("MCP MCP", json);

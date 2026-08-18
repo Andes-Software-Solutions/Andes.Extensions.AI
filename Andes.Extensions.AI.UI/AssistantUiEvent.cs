@@ -51,7 +51,9 @@ public sealed record AssistantUiEvent
 
     /// <summary>
     /// Gets the clean display name of the activity (no "Calling" prefix, no kind word appended),
-    /// when the event targets an activity.
+    /// when the event targets an activity. For <see cref="ToolKind.McpTool"/> this is the raw MCP
+    /// tool name (the server name travels in <see cref="Source"/>); for other kinds it is the
+    /// function or agent name.
     /// </summary>
     public string? DisplayName { get; init; }
 

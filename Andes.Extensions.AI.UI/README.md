@@ -31,7 +31,7 @@ await foreach (AssistantStatusSnapshot snapshot in client
     Console.WriteLine(snapshot.AssistantStatus);
     foreach (AssistantActivity activity in snapshot.Activities)
     {
-        // e.g. "Andes Test MCP" [McpTool] — name and kind are separate, never "Andes Test MCP MCP"
+        // e.g. "get_forecast" [McpTool] — the MCP tool name; the server ("Andes Test MCP") is activity.Source
         Console.WriteLine($"{activity.DisplayName} [{activity.Kind}] — {activity.State}");
     }
 }
@@ -41,7 +41,7 @@ For an HTTP surface, stream `ToUiEventsAsync()` instead and serialize each event
 
 ## Notes
 
-- `DisplayName` is the raw function/server/agent name with no "Calling" prefix and no kind word appended; render it once and show `Kind` as a badge. The contract carries no pre-composed header strings, so labels localize cleanly.
+- `DisplayName` is the raw function/tool/agent name with no "Calling" prefix and no kind word appended; render it once and show `Kind` as a badge. For `McpTool` activities it is the MCP tool's name (the server name travels separately in `Source`), so two tools from the same server stay distinguishable. The contract carries no pre-composed header strings, so labels localize cleanly.
 - `AssistantUiJsonContext` matches the TypeScript interface byte-for-byte: camelCase keys, string enum values (`"McpTool"`, `"Agent"`, …), and omitted `null`s.
 - Progress values from MCP servers are single-precision floats widened to `double`; format with a rounding specifier such as `"0.#"` before display.
 - Privacy posture matches the core package: events and snapshots never carry prompt content, tool arguments, or tool results. Model outputs — the answer text and the reasoning summary — flow as in-band content on the stream itself; progress metadata never carries them.

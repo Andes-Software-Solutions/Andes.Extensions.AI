@@ -18,9 +18,10 @@ public sealed record AssistantActivity
     public required string ScopeId { get; init; }
 
     /// <summary>
-    /// Gets the clean display name of the activity — the function, MCP server, or agent name — with
-    /// no "Calling" prefix and no kind word appended (for example "GetForecast", "Andes Test MCP",
-    /// or "Research Agent").
+    /// Gets the clean display name of the activity — the function, MCP tool, or agent name — with
+    /// no "Calling" prefix and no kind word appended (for example "GetForecast", "get_forecast",
+    /// or "Research Agent"). For <see cref="ToolKind.McpTool"/> this is the raw MCP tool name; the
+    /// server name travels in <see cref="Source"/>.
     /// </summary>
     public required string DisplayName { get; init; }
 

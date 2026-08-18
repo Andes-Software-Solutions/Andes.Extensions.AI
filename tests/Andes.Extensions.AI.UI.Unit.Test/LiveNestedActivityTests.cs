@@ -75,6 +75,53 @@ public class LiveNestedActivityTests
         Assert.Equal(5, child.Usage.TotalTokens);
     }
 
+    [Fact]
+    public async Task ToStatusSnapshotsAsync_NestedMcpScopeInsideTool_ChildCardShowsToolName()
+    {
+        AIFunction tool = AIFunctionFactory.Create(
+            () =>
+            {
+                using (ChatProgress.BeginToolScope(NestedMcpDescriptor()))
+                {
+                }
+
+                return "done";
+            },
+            "Outer");
+        var scripted = new ScriptedChatClient(
+            ScriptedTurn.FunctionCall("call-1", "Outer"),
+            ScriptedTurn.Text("Done.", new UsageDetails { TotalTokenCount = 20 }));
+        IChatClient client = TestPipeline.Build(scripted);
+
+        AssistantStatusSnapshot? last = null;
+        await foreach (AssistantStatusSnapshot snapshot in client
+            .GetStreamingResponseAsync("prompt", new ChatOptions { Tools = [tool] })
+            .ToStatusSnapshotsAsync())
+        {
+            last = snapshot;
+        }
+
+        Assert.NotNull(last);
+        AssistantActivity root = Assert.Single(last.Activities);
+        AssistantActivity child = Assert.Single(root.Children);
+        Assert.Equal("get_forecast", child.DisplayName);
+        Assert.Equal("Weather", child.Source);
+        Assert.Equal(ToolKind.McpTool, child.Kind);
+        Assert.Equal(ActivityState.Completed, child.State);
+    }
+
+    private static ToolDescriptor NestedMcpDescriptor()
+    {
+        // Mirrors the descriptor shape McpTrackingAIFunction builds for a nested MCP call:
+        // Name = tool name, Source = server name, no explicit DisplayName.
+        return new ToolDescriptor
+        {
+            Name = "get_forecast",
+            Kind = ToolKind.McpTool,
+            Source = "Weather",
+        };
+    }
+
     private static ToolDescriptor NestedDescriptor()
     {
         return new ToolDescriptor

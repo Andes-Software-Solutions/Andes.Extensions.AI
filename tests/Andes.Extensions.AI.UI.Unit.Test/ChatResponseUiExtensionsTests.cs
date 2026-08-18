@@ -32,10 +32,8 @@ public class ChatResponseUiExtensionsTests
         Assert.Contains(events, e => e.Kind == AssistantUiEventKind.Finished);
     }
 
-    [Theory]
-    [InlineData(ToolKind.McpTool, "Andes Test MCP")]
-    [InlineData(ToolKind.Agent, "Research Agent")]
-    public async Task ToUiEventsAsync_NameEndingWithKindWord_DisplayNameHasNoRepeat(ToolKind kind, string source)
+    [Fact]
+    public async Task ToUiEventsAsync_AgentTool_DisplayNameIsSourceWithNoKindWordRepeat()
     {
         var scripted = new ScriptedChatClient(
             ScriptedTurn.FunctionCall("call-1", "do_work"),
@@ -45,17 +43,68 @@ public class ChatResponseUiExtensionsTests
             options.ToolClassifier = candidate => new ToolDescriptor
             {
                 Name = candidate.Name,
-                Kind = kind,
-                Source = source,
+                Kind = ToolKind.Agent,
+                Source = "Research Agent",
             });
 
         List<AssistantUiEvent> events = await CollectAsync(client, new ChatOptions { Tools = [tool] });
 
         AssistantUiEvent started = Assert.Single(events, e => e.Kind == AssistantUiEventKind.ActivityStarted);
-        Assert.Equal(source, started.DisplayName);
-        Assert.Equal(kind, started.ToolKind);
-        Assert.DoesNotContain("MCP MCP", started.DisplayName);
+        Assert.Equal("Research Agent", started.DisplayName);
+        Assert.Equal("Research Agent", started.Source);
+        Assert.Equal(ToolKind.Agent, started.ToolKind);
         Assert.DoesNotContain("Agent Agent", started.DisplayName);
+    }
+
+    [Fact]
+    public async Task ToUiEventsAsync_McpTool_DisplayNameIsToolNameAndSourceIsServerName()
+    {
+        var scripted = new ScriptedChatClient(
+            ScriptedTurn.FunctionCall("call-1", "do_work"),
+            ScriptedTurn.Text("Done."));
+        AIFunction tool = AIFunctionFactory.Create(() => "ok", "do_work");
+        IChatClient client = TestPipeline.Build(scripted, options =>
+            options.ToolClassifier = candidate => new ToolDescriptor
+            {
+                Name = candidate.Name,
+                Kind = ToolKind.McpTool,
+                Source = "Andes Test MCP",
+            });
+
+        List<AssistantUiEvent> events = await CollectAsync(client, new ChatOptions { Tools = [tool] });
+
+        AssistantUiEvent started = Assert.Single(events, e => e.Kind == AssistantUiEventKind.ActivityStarted);
+        Assert.Equal("do_work", started.DisplayName);
+        Assert.Equal("Andes Test MCP", started.Source);
+        Assert.Equal(ToolKind.McpTool, started.ToolKind);
+
+        AssistantUiEvent completed = Assert.Single(events, e => e.Kind == AssistantUiEventKind.ActivityCompleted);
+        Assert.Equal("do_work", completed.DisplayName);
+        Assert.Equal("Andes Test MCP", completed.Source);
+    }
+
+    [Fact]
+    public async Task ToSnapshot_McpTool_ActivityCardShowsToolNameWithServerSource()
+    {
+        var scripted = new ScriptedChatClient(
+            ScriptedTurn.FunctionCall("call-1", "do_work"),
+            ScriptedTurn.Text("Done."));
+        AIFunction tool = AIFunctionFactory.Create(() => "ok", "do_work");
+        IChatClient client = TestPipeline.Build(scripted, options =>
+            options.ToolClassifier = candidate => new ToolDescriptor
+            {
+                Name = candidate.Name,
+                Kind = ToolKind.McpTool,
+                Source = "Andes Test MCP",
+            });
+
+        List<ChatResponseUpdate> updates = await TestPipeline.CollectAsync(client, new ChatOptions { Tools = [tool] });
+        AssistantStatusSnapshot snapshot = TestPipeline.ReportOf(updates).ToSnapshot();
+
+        AssistantActivity activity = Assert.Single(snapshot.Activities);
+        Assert.Equal("do_work", activity.DisplayName);
+        Assert.Equal("Andes Test MCP", activity.Source);
+        Assert.Equal(ToolKind.McpTool, activity.Kind);
     }
 
     [Fact]
