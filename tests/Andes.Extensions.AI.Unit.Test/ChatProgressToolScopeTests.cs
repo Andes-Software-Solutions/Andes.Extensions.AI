@@ -174,6 +174,37 @@ public class ChatProgressToolScopeTests
     }
 
     [Fact]
+    public async Task BeginToolScope_ChildOpenedOnLaterIteration_InheritsIssuingTurnIteration()
+    {
+        AIFunction first = AIFunctionFactory.Create(() => "one", "First");
+        AIFunction outer = AIFunctionFactory.Create(
+            () =>
+            {
+                using (ChatProgress.BeginToolScope(new ToolDescriptor { Name = "nested" }))
+                {
+                }
+
+                return "done";
+            },
+            "Outer");
+        var scripted = new ScriptedChatClient(
+            ScriptedTurn.FunctionCall("call-1", "First"),
+            ScriptedTurn.FunctionCall("call-2", "Outer"),
+            ScriptedTurn.Text("Done."));
+        IChatClient client = TestPipeline.Build(scripted);
+
+        List<ChatResponseUpdate> updates = await TestPipeline.CollectAsync(client, new ChatOptions { Tools = [first, outer] });
+        ChatUsageReport report = TestPipeline.ReportOf(updates);
+
+        Assert.Equal(2, report.ToolCalls.Count);
+        Assert.Equal(0, report.ToolCalls.Single(call => call.CallId == "call-1").Iteration);
+        ToolCallUsage outerCall = report.ToolCalls.Single(call => call.CallId == "call-2");
+        Assert.Equal(1, outerCall.Iteration);
+        ToolCallUsage child = Assert.Single(outerCall.Children);
+        Assert.Equal(1, child.Iteration);
+    }
+
+    [Fact]
     public async Task BeginToolScope_SubStatusInsideChild_AttachesToChildScope()
     {
         string? childScopeId = null;

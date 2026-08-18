@@ -106,13 +106,15 @@ ChatUsageReport
 ├── AssistantUsage   UsageDetails          — model turns only, tools excluded
 ├── Turns            AssistantTurnUsage[]  — per-iteration breakdown (streaming only)
 ├── ToolCalls        ToolCallUsage[]       — top-level invocations; each has
-│                                            CallId, ToolName, Kind, Source,
+│                                            CallId, Iteration, ToolName, Kind, Source,
 │                                            Usage (rollup), Children, Duration, Succeeded
 ├── TotalUsage       UsageDetails          — AssistantUsage + tool rollups
 ├── ModelId / ProviderName / ResponseId    — from the response, falling back to
 │                                            the inner client's ChatClientMetadata
 └── Duration         TimeSpan              — wall clock for the whole request
 ```
+
+**`Iteration` correlates `ToolCalls` with `Turns` (v0.6).** Each `ToolCallUsage` carries the zero-based model iteration of the function-invocation loop that issued the call, matching `AssistantTurnUsage.Iteration` — stamped when the tool's scope opens, so it always names the issuing turn, including when one turn issues several calls (which timing alone could never disambiguate: with the default serial invocation, N calls from one turn look identical to N single-call turns). This is what makes per-tool **prompt-cost** attribution possible: a tool's arguments and result are not billed inside the call itself but in the *next* iteration's prompt, so with the per-turn breakdown the cost of the calls a turn issued is recoverable exactly — `input(N+1) − input(N) − output(N)` — and `Iteration` tells you which calls sit between turn N and turn N+1. The library reports the facts and leaves the delta arithmetic to the consumer, because the subtraction is an attribution model rather than an invoice: reasoning tokens bill as output but are usually not replayed into the next prompt, and cached input bills at a discount. Nested calls (`Children`) report the iteration of the outer request's model turn that issued the enclosing root call; on the non-streaming path `Iteration` is always 0, consistent with `Turns` being populated only when streaming.
 
 Delivery differs by call style. Streaming: the report arrives as the final `UsageReportContent` update and via `IChatProgressObserver.OnRequestCompleted`. Non-streaming: `Turns` is empty (providers report one aggregate) and the report is attached to `ChatResponse.AdditionalProperties` under `ToolTrackingChatClient.UsageReportPropertyName` (`"andes.ai.usage_report"`).
 

@@ -250,7 +250,7 @@ if (response.AdditionalProperties?.TryGetValue(
 }
 ```
 
-`ToolCallUsage.Usage` is `null` when nothing was attributed to that call; `Children` holds tool calls nested inside it, already included in the parent's rollup.
+`ToolCallUsage.Usage` is `null` when nothing was attributed to that call; `Children` holds tool calls nested inside it, already included in the parent's rollup. `Iteration` (v0.6) is the zero-based model iteration of the function-invocation loop that issued the call, matching `AssistantTurnUsage.Iteration` — correlate it with `Turns` to attribute the *next* iteration's prompt cost to the tool calls that produced it (see [Usage attribution](architecture.md#usage-attribution) for the delta formula). Nested `Children` report the outer issuing turn's iteration, and non-streaming reports always stamp 0, consistent with `Turns` being empty there.
 
 ## Strip synthetic content before persisting history
 
