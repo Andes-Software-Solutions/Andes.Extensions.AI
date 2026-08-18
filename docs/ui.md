@@ -16,7 +16,7 @@ This guide covers installation, the two DTO layers, the mapper and reducer, the 
 dotnet add package Andes.Extensions.AI.UI
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.6.0) and `Microsoft.Extensions.AI.Abstractions` — nothing else. The package does not reference the [MCP](mcp.md) or [Agent](agents.md) satellites; it doesn't need to, because `ToolKind` (the `Unknown`/`Function`/`McpTool`/`Agent` badge every activity carries) already lives in core, shared by every satellite.
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.7.0) and `Microsoft.Extensions.AI.Abstractions` — nothing else. The package does not reference the [MCP](mcp.md) or [Agent](agents.md) satellites; it doesn't need to, because `ToolKind` (the `Unknown`/`Function`/`McpTool`/`Agent` badge every activity carries) already lives in core, shared by every satellite.
 
 ## Quickstart
 
@@ -40,7 +40,7 @@ await foreach (AssistantStatusSnapshot snapshot in client
     Console.WriteLine(snapshot.AssistantStatus);
     foreach (AssistantActivity activity in snapshot.Activities)
     {
-        // e.g. "Andes Test MCP" [McpTool] — name and kind are separate, never "Andes Test MCP MCP"
+        // e.g. "get_forecast" [McpTool] — the MCP tool name; the server ("Andes Test MCP") is activity.Source
         Console.WriteLine($"{activity.DisplayName} [{activity.Kind}] — {activity.State}");
     }
 }
@@ -112,7 +112,7 @@ Four static members turn the tracked, in-band stream into the contract:
 | `ToUsageSummary(this UsageDetails)` | A core usage value | The flattened `UsageSummary` |
 | `ToSnapshot(this ChatUsageReport)` | A completed usage report (for example the non-streaming `ChatResponse.AdditionalProperties` report) | A `Completed`-phase snapshot built directly from the report's `ToolCalls` tree — useful when all you have is the final report, not the live stream. It carries no `ReasoningText` (or `Text`): reports contain no model content |
 
-The mapper is where the clean-name design lives: `ToUiEvent` sets `DisplayName = update.ToolSource ?? update.ToolName` — the raw server/agent/function name — never `update.Message`, which is the *composed* header text ("Calling GetWeather Tool", "Calling Andes Test MCP"). `ToSnapshot`'s `ToActivity` helper does the same from a `ToolCallUsage`: `DisplayName = call.Source ?? call.ToolName`. It also recurses `ToolCallUsage.Children`, so nested activities — including the v0.3 satellite child scopes — arrive with their own per-node `Usage`, matching the live tree's shape. See [Clean names, not composed headers](#clean-names-not-composed-headers) for why this matters.
+The mapper is where the clean-name design lives: `ToUiEvent` derives `DisplayName` from the raw tool name and source — never from `update.Message`, which is the *composed* header text ("Calling GetWeather Tool", "Calling Andes Test MCP"). The rule is kind-conditional (v0.7): for `ToolKind.McpTool` the `DisplayName` is the raw MCP **tool** name (`update.ToolName`, e.g. `get_forecast`) because the server name already travels in `Source` and one server exposes many tools; for every other kind it stays source-first (`update.ToolSource ?? update.ToolName` — an agent's source is its display-worthy name, and plain functions rarely have a source). `ToSnapshot`'s `ToActivity` helper applies the same rule from a `ToolCallUsage`. It also recurses `ToolCallUsage.Children`, so nested activities — including the v0.3 satellite child scopes — arrive with their own per-node `Usage`, matching the live tree's shape. See [Clean names, not composed headers](#clean-names-not-composed-headers) for why this matters.
 
 ## The reducer: `AssistantStatusReducer`
 
@@ -160,7 +160,7 @@ This is the whole reason the contract exists, so it's worth stating plainly: **e
 
 The core middleware's progress headers are composed text meant for a plain-text console or log line: `ToolTrackingOptions.HeaderFormatter`'s default produces `"Calling {DisplayName} Tool"` for functions, `"Calling {Source} MCP"` for MCP tools, and `"Calling {DisplayName} Agent"` for agents — and, as of core v0.2, that formatter already avoids doubling the kind word when the name ends with it (`"Andes Test MCP"` renders as `"Calling Andes Test MCP"`, not `"Calling Andes Test MCP MCP"`; `"Research Agent"` renders as `"Calling Research Agent"`). That fix helps *console and log output*, but it's still one composed English string — not something a UI can restyle, badge, or localize.
 
-The UI contract sidesteps the composition problem entirely instead of patching it further: `AssistantActivity.DisplayName` (and `AssistantUiEvent.DisplayName`) is always the *raw* name — the function's registered name, the MCP server's title, or the agent's name — with no "Calling" prefix and no kind word appended, ever. `Kind` (the core `ToolKind`: `Function`, `McpTool`, or `Agent`) travels alongside it as its own field, meant to render as a badge or icon rather than be concatenated into the label. A server named "Andes Test MCP" renders as `DisplayName: "Andes Test MCP"` with `Kind: McpTool` — a UI shows the name once and the badge once, and the string "MCP" never appears twice no matter how the server was named. Because there's no English text baked into the field, a UI can localize the `Kind` badge (a fixed, small enum) independently of the `DisplayName` (arbitrary, unlocalized, developer-supplied text) — something a composed header string could never support.
+The UI contract sidesteps the composition problem entirely instead of patching it further: `AssistantActivity.DisplayName` (and `AssistantUiEvent.DisplayName`) is always the *raw* name — the function's registered name, the MCP tool's name, or the agent's name — with no "Calling" prefix and no kind word appended, ever. `Kind` (the core `ToolKind`: `Function`, `McpTool`, or `Agent`) travels alongside it as its own field, meant to render as a badge or icon rather than be concatenated into the label. For MCP activities the tool and the server are two separate fields (v0.7, [#12](https://github.com/Andes-Software-Solutions/Andes.Extensions.AI/issues/12)): a tool named `get_forecast` on a server named "Andes Test MCP" renders as `DisplayName: "get_forecast"`, `Source: "Andes Test MCP"`, `Kind: McpTool` — so two tools from the same server stay distinguishable, the server name isn't duplicated across both fields, and the string "MCP" never appears twice no matter how the server was named. The name ships raw and unformatted (including any model-facing renames) so clients apply their own presentation conventions. Because there's no English text baked into the field, a UI can localize the `Kind` badge (a fixed, small enum) independently of the `DisplayName` (arbitrary, unlocalized, developer-supplied text) — something a composed header string could never support.
 
 ## Privacy posture
 

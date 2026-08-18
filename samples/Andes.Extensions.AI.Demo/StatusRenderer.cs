@@ -109,8 +109,16 @@ internal static class StatusRenderer
         string duration = activity.DurationSeconds is { } seconds ? $" [dim]{seconds:0.0}s[/]" : string.Empty;
         string usage = activity.Usage?.TotalTokens is { } tokens ? $" [dim]· {tokens:N0} tok[/]" : string.Empty;
 
+        // MCP cards show the tool name as DisplayName; surface the owning server (Source) as a
+        // dim hint so both halves of the contract stay visible. Skipped when they coincide.
+        string server = activity.Kind == ToolKind.McpTool
+            && activity.Source is { Length: > 0 } source
+            && source != activity.DisplayName
+            ? $" [dim]{Markup.Escape(source)}[/]"
+            : string.Empty;
+
         TreeNode node = parent.AddNode(new Markup(
-            $"{glyph} [bold]{Markup.Escape(activity.DisplayName)}[/] {badge}{duration}{usage}"));
+            $"{glyph} [bold]{Markup.Escape(activity.DisplayName)}[/]{server} {badge}{duration}{usage}"));
 
         foreach (SubStatus subStatus in activity.SubStatuses)
         {

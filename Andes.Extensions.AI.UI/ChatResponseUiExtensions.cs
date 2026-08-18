@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
 
@@ -11,8 +12,9 @@ namespace Andes.Extensions.AI;
 /// </summary>
 /// <remarks>
 /// These projections derive each activity's clean <see cref="AssistantActivity.DisplayName"/> from
-/// the raw tool/server/agent name rather than the composed progress header, so the kind word is
-/// never repeated and the label localizes cleanly.
+/// the raw function, MCP tool, or agent name rather than the composed progress header (for
+/// <see cref="ToolKind.McpTool"/> the server name travels in <see cref="AssistantActivity.Source"/>),
+/// so the kind word is never repeated and the label localizes cleanly.
 /// </remarks>
 public static class ChatResponseUiExtensions
 {
@@ -109,7 +111,9 @@ public static class ChatResponseUiExtensions
 
     /// <summary>
     /// Projects a single core progress update into an <see cref="AssistantUiEvent"/>, deriving the
-    /// clean <see cref="AssistantUiEvent.DisplayName"/> from the tool source or name.
+    /// clean <see cref="AssistantUiEvent.DisplayName"/> from the tool name or source: MCP tool
+    /// activities display the tool name (the server name stays in
+    /// <see cref="AssistantUiEvent.Source"/>); all other kinds display the source when present.
     /// </summary>
     /// <param name="update">The progress update to project.</param>
     /// <returns>The equivalent UI event.</returns>
@@ -126,7 +130,7 @@ public static class ChatResponseUiExtensions
             ParentScopeId = update.ParentScopeId,
             Depth = update.Depth,
             ToolKind = update.ToolKind,
-            DisplayName = update.ToolSource ?? update.ToolName,
+            DisplayName = ResolveDisplayName(update.ToolKind, update.ToolName, update.ToolSource),
             Source = update.ToolSource,
             Progress = update.Progress,
             ProgressTotal = update.ProgressTotal,
@@ -188,7 +192,7 @@ public static class ChatResponseUiExtensions
         return new AssistantActivity
         {
             ScopeId = call.CallId ?? call.ToolName,
-            DisplayName = call.Source ?? call.ToolName,
+            DisplayName = ResolveDisplayName(call.Kind, call.ToolName, call.Source),
             Kind = call.Kind,
             Source = call.Source,
             State = call.Succeeded ? ActivityState.Completed : ActivityState.Failed,
@@ -197,6 +201,17 @@ public static class ChatResponseUiExtensions
             Children = [.. call.Children.Select(ToActivity)],
             Usage = call.Usage?.ToUsageSummary(),
         };
+    }
+
+    [return: NotNullIfNotNull(nameof(toolName))]
+    private static string? ResolveDisplayName(ToolKind kind, string? toolName, string? source)
+    {
+        // MCP servers expose many tools, so the tool name is the distinguishing label and the
+        // server name already travels in Source. Every other kind keeps source-first semantics
+        // (an agent's source is its display-worthy name; plain functions rarely have a source).
+        return kind is ToolKind.McpTool
+            ? toolName ?? source
+            : source ?? toolName;
     }
 
     private static AssistantUiEventKind MapKind(ChatProgressKind kind)
