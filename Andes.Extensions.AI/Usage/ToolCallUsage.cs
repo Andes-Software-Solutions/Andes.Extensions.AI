@@ -14,6 +14,18 @@ public sealed class ToolCallUsage
     public string? CallId { get; init; }
 
     /// <summary>
+    /// Gets the zero-based model iteration of the function-invocation loop that issued this call,
+    /// corresponding to <see cref="AssistantTurnUsage.Iteration"/>.
+    /// </summary>
+    /// <remarks>
+    /// Nested calls (the <see cref="Children"/> of another call) report the iteration of the outer
+    /// request's model turn that issued the enclosing root call. On the non-streaming path the
+    /// value is always 0, matching <see cref="ChatUsageReport.Turns"/> being populated only when
+    /// streaming.
+    /// </remarks>
+    public required int Iteration { get; init; }
+
+    /// <summary>
     /// Gets the name of the invoked tool.
     /// </summary>
     public required string ToolName { get; init; }

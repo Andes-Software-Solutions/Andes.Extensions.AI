@@ -13,6 +13,7 @@ internal sealed class ToolScope(
     ToolDescriptor? descriptor,
     string? callId,
     int depth,
+    int iteration,
     AIFunction? owner = null)
 {
     private readonly Lock _lock = new();
@@ -33,6 +34,13 @@ internal sealed class ToolScope(
     public string? CallId { get; } = callId;
 
     public int Depth { get; } = depth;
+
+    /// <summary>
+    /// Gets the zero-based model iteration the tracker was on when this scope opened — the turn
+    /// that issued the call. 0 for the request root and everywhere on the non-streaming path,
+    /// where the counter never advances.
+    /// </summary>
+    public int Iteration { get; } = iteration;
 
     /// <summary>
     /// Gets the function this scope was opened for (the unwrapped tool the tracker delegated to),

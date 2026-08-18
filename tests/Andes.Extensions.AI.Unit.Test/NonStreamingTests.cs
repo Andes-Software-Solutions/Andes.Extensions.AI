@@ -51,6 +51,22 @@ public class NonStreamingTests
     }
 
     [Fact]
+    public async Task GetResponseAsync_ToolLoop_StampsIterationZeroOnToolCalls()
+    {
+        var scripted = new ScriptedChatClient(
+            ScriptedTurn.FunctionCall("call-1", "GetWeather"),
+            ScriptedTurn.Text("It's sunny.", new UsageDetails { TotalTokenCount = 40 }));
+        AIFunction tool = AIFunctionFactory.Create(() => "sunny", "GetWeather");
+        IChatClient client = TestPipeline.Build(scripted);
+
+        ChatResponse response = await client.GetResponseAsync("prompt", new ChatOptions { Tools = [tool] });
+
+        var report = Assert.IsType<ChatUsageReport>(response.AdditionalProperties?[ToolTrackingChatClient.UsageReportPropertyName]);
+        ToolCallUsage call = Assert.Single(report.ToolCalls);
+        Assert.Equal(0, call.Iteration);
+    }
+
+    [Fact]
     public async Task GetResponseAsync_AttachReportDisabled_LeavesAdditionalPropertiesAlone()
     {
         var scripted = new ScriptedChatClient(ScriptedTurn.Text("Hello!"));

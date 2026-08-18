@@ -18,7 +18,7 @@ This guide covers installation, how classification and usage capture work, the d
 dotnet add package Andes.Extensions.AI.Agent
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.5.0) and [`Microsoft.Agents.AI`](https://www.nuget.org/packages/Microsoft.Agents.AI) (>= 1.17.0, stable).
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.6.0) and [`Microsoft.Agents.AI`](https://www.nuget.org/packages/Microsoft.Agents.AI) (>= 1.17.0, stable).
 
 ## Quickstart
 
@@ -134,7 +134,7 @@ Both paths surface **sub-statuses on the agent's scope** — plain function tool
 
 ## Nested agents
 
-An agent does not have to be a top-level tool. Since v0.3, a `WithTracking` wrapper invoked while another tool's scope is ambient opens its **own child scope** (via the core's [`ChatProgress.BeginToolScope`](architecture.md#the-ambient-scope-tree)): the nested run renders live as its own child activity — a `ToolInvoking` header carrying `ParentScopeId`/`Depth`, its own sub-statuses, completion, and duration — and lands as a child `ToolCallUsage` (with its own usage, duration, and `Succeeded` flag) under the enclosing call in the `ChatUsageReport`. Previously such a run surfaced only flat: sub-statuses and usage on the enclosing tool's scope. Two shapes reach this path:
+An agent does not have to be a top-level tool. Since v0.3, a `WithTracking` wrapper invoked while another tool's scope is ambient opens its **own child scope** (via the core's [`ChatProgress.BeginToolScope`](architecture.md#the-ambient-scope-tree)): the nested run renders live as its own child activity — a `ToolInvoking` header carrying `ParentScopeId`/`Depth`, its own sub-statuses, completion, and duration — and lands as a child `ToolCallUsage` (with its own usage, duration, and `Succeeded` flag; its `Iteration` reports the outer request's model turn that issued the enclosing root call) under the enclosing call in the `ChatUsageReport`. Previously such a run surfaced only flat: sub-statuses and usage on the enclosing tool's scope. Two shapes reach this path:
 
 **A — an agent as a tool of another agent.** The inner agent is registered as a tool of the outer agent, whose own function-invocation loop calls the wrapped function. Because `FunctionInvokingChatClient.CurrentContext` then describes the wrapper itself, the child scope is correlated with the **inner loop's function-call id** — `CallId` on the child's events is the inner model's call id.
 

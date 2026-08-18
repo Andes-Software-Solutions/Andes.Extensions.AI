@@ -60,7 +60,37 @@ public class UsageTrackingTests
         ToolCallUsage call = Assert.Single(report.ToolCalls);
         Assert.Equal("GetWeather", call.ToolName);
         Assert.Equal("call-1", call.CallId);
+        Assert.Equal(0, call.Iteration);
         Assert.True(call.Succeeded);
+    }
+
+    [Fact]
+    public async Task GetStreamingResponseAsync_MultipleCallsPerTurn_StampsIssuingIterationOnEachToolCall()
+    {
+        var scripted = new ScriptedChatClient(
+            ScriptedTurn.FunctionCalls(
+                [("call-1", "GetWeather"), ("call-2", "GetTime")],
+                usage: new UsageDetails { InputTokenCount = 20, OutputTokenCount = 10, TotalTokenCount = 30 }),
+            ScriptedTurn.FunctionCall(
+                "call-3",
+                "GetWeather",
+                usage: new UsageDetails { InputTokenCount = 40, OutputTokenCount = 12, TotalTokenCount = 52 }),
+            ScriptedTurn.Text(
+                "It's sunny at noon.",
+                new UsageDetails { InputTokenCount = 60, OutputTokenCount = 15, TotalTokenCount = 75 }));
+        AIFunction weather = AIFunctionFactory.Create(() => "sunny", "GetWeather");
+        AIFunction time = AIFunctionFactory.Create(() => "noon", "GetTime");
+        IChatClient client = TestPipeline.Build(scripted);
+
+        List<ChatResponseUpdate> updates = await TestPipeline.CollectAsync(client, new ChatOptions { Tools = [weather, time] });
+        ChatUsageReport report = TestPipeline.ReportOf(updates);
+
+        Assert.Equal(3, report.Turns.Count);
+        Assert.Equal([0, 1, 2], report.Turns.Select(turn => turn.Iteration));
+        Assert.Equal(3, report.ToolCalls.Count);
+        Assert.Equal(0, report.ToolCalls.Single(call => call.CallId == "call-1").Iteration);
+        Assert.Equal(0, report.ToolCalls.Single(call => call.CallId == "call-2").Iteration);
+        Assert.Equal(1, report.ToolCalls.Single(call => call.CallId == "call-3").Iteration);
     }
 
     [Fact]

@@ -33,7 +33,7 @@ internal sealed class RequestTracker
         _writer = writer;
         _observers = [.. options.Observers];
         _startTimestamp = options.TimeProvider.GetTimestamp();
-        RootScope = new ToolScope(this, NextScopeId(), parent: null, descriptor: null, callId: null, depth: 0);
+        RootScope = new ToolScope(this, NextScopeId(), parent: null, descriptor: null, callId: null, depth: 0, iteration: 0);
     }
 
     public ToolScope RootScope { get; }
@@ -128,7 +128,13 @@ internal sealed class RequestTracker
         AIFunction? owner = null)
     {
         ToolScope effectiveParent = parent ?? RootScope;
-        var scope = new ToolScope(this, NextScopeId(), effectiveParent, descriptor, callId, effectiveParent.Depth + 1, owner);
+        int iteration;
+        lock (_lock)
+        {
+            iteration = _iteration;
+        }
+
+        var scope = new ToolScope(this, NextScopeId(), effectiveParent, descriptor, callId, effectiveParent.Depth + 1, iteration, owner);
         effectiveParent.AddChild(scope);
         Emit(new ChatProgressUpdate
         {
@@ -427,6 +433,7 @@ internal sealed class RequestTracker
         return new ToolCallUsage
         {
             CallId = scope.CallId,
+            Iteration = scope.Iteration,
             ToolName = descriptor.Name,
             Kind = descriptor.Kind,
             Source = descriptor.Source,

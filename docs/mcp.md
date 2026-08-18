@@ -16,7 +16,7 @@ This guide covers installation, how classification and the progress bridge work,
 dotnet add package Andes.Extensions.AI.Mcp
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.5.0) and [`ModelContextProtocol.Core`](https://www.nuget.org/packages/ModelContextProtocol.Core) (>= 2.1.0). Apps that build MCP clients or servers with the full `ModelContextProtocol` package are unaffected — the satellite only needs the Core types.
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.6.0) and [`ModelContextProtocol.Core`](https://www.nuget.org/packages/ModelContextProtocol.Core) (>= 2.2.0). Apps that build MCP clients or servers with the full `ModelContextProtocol` package are unaffected — the satellite only needs the Core types.
 
 ## Quickstart
 
@@ -121,7 +121,7 @@ Bridged `ToolProgress` events arrive on a different thread than the request path
 
 ## Nested MCP tools
 
-Since v0.3, a `WithTracking` wrapper invoked while another tool's scope is ambient — an MCP tool given to an agent as one of its tools, or invoked directly inside a plain tool's body — opens its **own child scope** (via the core's [`ChatProgress.BeginToolScope`](architecture.md#the-ambient-scope-tree)) instead of surfacing flat on the enclosing tool: the call renders live as its own child activity (`ToolInvoking` with `ParentScopeId`/`Depth`, completion, duration) and lands as a child `ToolCallUsage` under the enclosing call in the report. The wrapper opens the child scope **before** capturing the reporter, so the [progress bridge](#how-the-progress-bridge-works) binds to the child — bridged notifications land under the nested tool's own header, not the enclosing tool's. When the tracking middleware wrapped the function itself (the normal top-level registration), the owner check makes the call an inactive no-op — exactly one scope, the pre-v0.3 behavior. A nested call invoked directly from a tool body carries a `null` `CallId` (there is no function-invoking loop for the wrapper to correlate with); an agent's own invocation loop calling the tool supplies its call id.
+Since v0.3, a `WithTracking` wrapper invoked while another tool's scope is ambient — an MCP tool given to an agent as one of its tools, or invoked directly inside a plain tool's body — opens its **own child scope** (via the core's [`ChatProgress.BeginToolScope`](architecture.md#the-ambient-scope-tree)) instead of surfacing flat on the enclosing tool: the call renders live as its own child activity (`ToolInvoking` with `ParentScopeId`/`Depth`, completion, duration) and lands as a child `ToolCallUsage` under the enclosing call in the report (its `Iteration` reporting the outer request's model turn that issued the enclosing root call). The wrapper opens the child scope **before** capturing the reporter, so the [progress bridge](#how-the-progress-bridge-works) binds to the child — bridged notifications land under the nested tool's own header, not the enclosing tool's. When the tracking middleware wrapped the function itself (the normal top-level registration), the owner check makes the call an inactive no-op — exactly one scope, the pre-v0.3 behavior. A nested call invoked directly from a tool body carries a `null` `CallId` (there is no function-invoking loop for the wrapper to correlate with); an agent's own invocation loop calling the tool supplies its call id.
 
 ## Numeric progress values
 
