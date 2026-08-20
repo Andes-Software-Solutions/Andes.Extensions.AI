@@ -46,7 +46,7 @@ Privacy invariant: progress events and reports never carry prompt content, tool 
 - Events and logs must never carry prompt content, tool arguments, or tool results. Tool-argument capture exists only behind `ToolTrackingOptions.IncludeToolArguments` (default `false`).
 - Public API changes require XML docs (missing docs fail the build) and a matching update under `docs\`.
 - Packaging metadata lives in each package's csproj; `dotnet pack -c Release` must produce the nupkg + snupkg with the README embedded (root README for core, each satellite's own `README.md` for the satellites).
-- The four packages version in **lockstep** (all `0.7.0` today); each satellite's `ProjectReference` to core becomes a `>= {version}` NuGet dependency automatically.
+- The four packages version in **lockstep** (all `0.8.0` today); each satellite's `ProjectReference` to core becomes a `>= {version}` NuGet dependency automatically.
 
 ## C# coding standards (always)
 

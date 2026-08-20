@@ -4,7 +4,6 @@
     "additionalDirectories": []
   },
   "model": "fable",
-  "availableModels": ["fable"],
   "enableAllProjectMcpServers": true,
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,

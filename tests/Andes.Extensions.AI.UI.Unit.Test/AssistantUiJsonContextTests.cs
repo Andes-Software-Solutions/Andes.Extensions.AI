@@ -43,6 +43,7 @@ public class AssistantUiJsonContextTests
         Assert.DoesNotContain("\"usage\"", json);
         Assert.DoesNotContain("\"text\"", json);
         Assert.DoesNotContain("\"reasoningText\"", json);
+        Assert.DoesNotContain("\"metadata\"", json);
     }
 
     [Fact]
@@ -89,5 +90,46 @@ public class AssistantUiJsonContextTests
         Assert.Equal(AssistantUiEventKind.ActivityStarted, roundTripped!.Kind);
         Assert.Equal("Research Agent", roundTripped.DisplayName);
         Assert.Equal(ToolKind.Agent, roundTripped.ToolKind);
+    }
+
+    [Fact]
+    public void SerializeRoundTrip_EventWithMetadata_PreservesEntriesWithVerbatimKeys()
+    {
+        var uiEvent = new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.Finished,
+            Metadata = new Dictionary<string, string>
+            {
+                ["MessageId"] = "m1",
+                ["conversation-id"] = "c1",
+            },
+        };
+
+        string json = JsonSerializer.Serialize(uiEvent, AssistantUiJsonContext.Default.AssistantUiEvent);
+        AssistantUiEvent? roundTripped = JsonSerializer.Deserialize(json, AssistantUiJsonContext.Default.AssistantUiEvent);
+
+        // The camelCase naming policy applies to property names only — dictionary keys travel verbatim.
+        Assert.Contains("\"metadata\":{", json);
+        Assert.Contains("\"MessageId\":\"m1\"", json);
+        Assert.Contains("\"conversation-id\":\"c1\"", json);
+        Assert.NotNull(roundTripped);
+        Assert.NotNull(roundTripped!.Metadata);
+        Assert.Equal("m1", roundTripped.Metadata!["MessageId"]);
+        Assert.Equal("c1", roundTripped.Metadata["conversation-id"]);
+    }
+
+    [Fact]
+    public void Serialize_SnapshotWithMetadata_EmitsCamelCasePropertyWithVerbatimKeys()
+    {
+        var snapshot = new AssistantStatusSnapshot
+        {
+            Phase = ActivityState.Completed,
+            Metadata = new Dictionary<string, string> { ["MessageId"] = "m1" },
+        };
+
+        string json = JsonSerializer.Serialize(snapshot, AssistantUiJsonContext.Default.AssistantStatusSnapshot);
+
+        Assert.Contains("\"metadata\":{", json);
+        Assert.Contains("\"MessageId\":\"m1\"", json);
     }
 }

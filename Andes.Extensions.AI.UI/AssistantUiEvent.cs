@@ -98,4 +98,12 @@ public sealed record AssistantUiEvent
     /// leave it at its default. Consume events in stream order rather than sorting by this value.
     /// </summary>
     public DateTimeOffset Timestamp { get; init; }
+
+    /// <summary>
+    /// Gets application-supplied values attached to this event by the API that produced it; the
+    /// package neither reads nor interprets them. Events produced by
+    /// <c>ChatResponseUiExtensions.ToUiEventsAsync</c> always leave this <see langword="null"/> —
+    /// attach values afterwards with <c>uiEvent with { Metadata = ... }</c>.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? Metadata { get; init; }
 }

@@ -45,5 +45,6 @@ For an HTTP surface, stream `ToUiEventsAsync()` instead and serialize each event
 - `AssistantUiJsonContext` matches the TypeScript interface byte-for-byte: camelCase keys, string enum values (`"McpTool"`, `"Agent"`, …), and omitted `null`s.
 - Progress values from MCP servers are single-precision floats widened to `double`; format with a rounding specifier such as `"0.#"` before display.
 - Privacy posture matches the core package: events and snapshots never carry prompt content, tool arguments, or tool results. Model outputs — the answer text and the reasoning summary — flow as in-band content on the stream itself; progress metadata never carries them.
+- Both `AssistantUiEvent` and `AssistantStatusSnapshot` carry an optional `Metadata`/`metadata` bag (`IReadOnlyDictionary<string, string>?`) for application-supplied correlation data (e.g. a persisted message id) — the package never sets or reads it, keys travel verbatim (case-sensitive), and `AssistantStatusReducer`/`foldAssistantEvents` merge each event's bag into the snapshot before any kind-specific handling, last write per key winning.
 
 Full documentation lives in the [repository docs](https://github.com/Andes-Software-Solutions/Andes.Extensions.AI/tree/main/docs).
