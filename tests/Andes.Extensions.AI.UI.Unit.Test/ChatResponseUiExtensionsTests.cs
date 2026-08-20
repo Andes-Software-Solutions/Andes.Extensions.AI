@@ -260,6 +260,29 @@ public class ChatResponseUiExtensionsTests
         Assert.Contains("It's sunny.", last.Text);
     }
 
+    [Fact]
+    public async Task ToUiEventsAsync_TrackedStream_LeavesMetadataNull()
+    {
+        var scripted = new ScriptedChatClient(
+            ScriptedTurn.FunctionCall("call-1", "GetForecast"),
+            ScriptedTurn.Text("Done."));
+        AIFunction tool = AIFunctionFactory.Create(
+            () =>
+            {
+                ChatProgress.Report("Working…");
+                return "sunny";
+            },
+            "GetForecast");
+        IChatClient client = TestPipeline.Build(scripted);
+
+        List<AssistantUiEvent> events = await CollectAsync(client, new ChatOptions { Tools = [tool] });
+
+        // The mapper never populates Metadata — attaching values is the application's job,
+        // via `uiEvent with { Metadata = ... }` on the events it re-streams.
+        Assert.NotEmpty(events);
+        Assert.All(events, e => Assert.Null(e.Metadata));
+    }
+
     private static async Task<List<AssistantUiEvent>> CollectAsync(IChatClient client, ChatOptions options)
     {
         var events = new List<AssistantUiEvent>();

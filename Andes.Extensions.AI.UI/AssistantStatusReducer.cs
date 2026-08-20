@@ -30,16 +30,29 @@ public sealed class AssistantStatusReducer
     private string? _text;
     private string? _reasoningText;
     private UsageSummary? _usage;
+    private IReadOnlyDictionary<string, string>? _metadata;
 
     /// <summary>
     /// Applies one event to the accumulated state and returns the resulting snapshot.
     /// </summary>
+    /// <remarks>
+    /// Application-supplied <see cref="AssistantUiEvent.Metadata"/> merges into the snapshot's
+    /// <see cref="AssistantStatusSnapshot.Metadata"/> before the kind-specific handling — last
+    /// write per key wins, <see langword="null"/> and empty bags are no-ops — so every kind,
+    /// including future ones this reducer does not recognize, still contributes its values. The
+    /// TypeScript <c>foldAssistantEvents</c> applies the same rule.
+    /// </remarks>
     /// <param name="uiEvent">The event to fold in.</param>
     /// <returns>An immutable snapshot reflecting every event applied so far.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="uiEvent"/> is <see langword="null"/>.</exception>
     public AssistantStatusSnapshot Apply(AssistantUiEvent uiEvent)
     {
         ArgumentNullException.ThrowIfNull(uiEvent);
+
+        // Metadata merges before the kind switch so every event — including kinds this reducer
+        // does not yet recognize — contributes its application-supplied values. The TypeScript
+        // foldAssistantEvents applies the same rule, keeping the two folds in lockstep.
+        MergeMetadata(uiEvent.Metadata);
 
         switch (uiEvent.Kind)
         {
@@ -118,6 +131,27 @@ public sealed class AssistantStatusReducer
         }
     }
 
+    private void MergeMetadata(IReadOnlyDictionary<string, string>? eventMetadata)
+    {
+        if (eventMetadata is not { Count: > 0 })
+        {
+            return;
+        }
+
+        // Copy-on-write: a fresh dictionary per merge keeps already-published snapshots immutable
+        // and never aliases the caller-owned event dictionary. Metadata-free events cost nothing.
+        Dictionary<string, string> merged = _metadata is { Count: > 0 } current
+            ? new Dictionary<string, string>(current)
+            : new Dictionary<string, string>(eventMetadata.Count);
+
+        foreach (KeyValuePair<string, string> pair in eventMetadata)
+        {
+            merged[pair.Key] = pair.Value;
+        }
+
+        _metadata = merged;
+    }
+
     private AssistantStatusSnapshot BuildSnapshot()
     {
         return new AssistantStatusSnapshot
@@ -128,6 +162,7 @@ public sealed class AssistantStatusReducer
             Text = _text,
             ReasoningText = _reasoningText,
             Usage = _usage,
+            Metadata = _metadata,
         };
     }
 

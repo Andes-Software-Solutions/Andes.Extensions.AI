@@ -44,4 +44,17 @@ public sealed record AssistantStatusSnapshot
     /// Gets the total token usage for the request, set once it finishes.
     /// </summary>
     public UsageSummary? Usage { get; init; }
+
+    /// <summary>
+    /// Gets application-supplied values attached by the API that produced it; the package neither
+    /// reads nor interprets them. When the snapshot comes from <see cref="AssistantStatusReducer"/>
+    /// (or the TypeScript <c>foldAssistantEvents</c>), this accumulates every folded event's
+    /// <see cref="AssistantUiEvent.Metadata"/> regardless of kind, last write per key winning.
+    /// Accumulated keys are compared ordinally regardless of the comparer on the supplied
+    /// dictionary, matching the TypeScript fold's object-key semantics. The built-in projections
+    /// (<c>ChatResponseUiExtensions.ToStatusSnapshotsAsync</c> and <c>ToSnapshot</c>) always leave
+    /// it <see langword="null"/> — values appear only when the application attaches them to the
+    /// events it folds.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? Metadata { get; init; }
 }

@@ -13,6 +13,7 @@ The point isn't the tool-tracking pipeline itself — [Getting started](../getti
 Any tracked pipeline works — this one keeps a single reporting function tool so the listing stays focused on the streaming plumbing, not the tools. Swap in MCP tools or an agent-as-tool exactly as the [Progress Board example](progress-board.md#the-pipeline) does; nothing downstream changes.
 
 ```csharp
+using System.Runtime.CompilerServices;
 using Andes.Extensions.AI;
 using Microsoft.Extensions.AI;
 
@@ -36,7 +37,7 @@ builder.Services.AddSingleton<IChatClient>(_ =>
 
 WebApplication app = builder.Build();
 
-app.MapGet("/chat/stream", (string prompt, IChatClient client, CancellationToken cancellationToken) =>
+app.MapGet("/chat/stream", (string prompt, IChatClient client, ITranscriptStore transcripts, CancellationToken cancellationToken) =>
 {
     AIFunction forecast = AIFunctionFactory.Create(
         (string city) =>
@@ -53,10 +54,37 @@ app.MapGet("/chat/stream", (string prompt, IChatClient client, CancellationToken
         .GetStreamingResponseAsync(prompt, chatOptions, cancellationToken)
         .ToUiEventsAsync(cancellationToken);
 
+    IAsyncEnumerable<AssistantUiEvent> eventsWithMessageId = AttachMessageIdAsync(
+        events, transcripts, prompt, cancellationToken);
+
     // TypedResults.ServerSentEvents (.NET 10) writes "event: assistant-ui\ndata: {...}\n\n" per item,
     // using the JsonOptions configured above -- no manual header setting or line encoding needed.
-    return TypedResults.ServerSentEvents(events, eventType: "assistant-ui");
+    return TypedResults.ServerSentEvents(eventsWithMessageId, eventType: "assistant-ui");
 });
+
+// Persists the finished turn as a transcript document and stamps its id onto the Finished event's
+// Metadata (a plain application-owned field the contract never populates) -- rewriting an event this
+// way is the whole mechanism, since AssistantUiEvent is an immutable record. The client reads it back
+// at snapshot.metadata?.messageId to offer per-message actions (rating, a permalink) without a
+// transcript refetch. Every other event passes through untouched.
+static async IAsyncEnumerable<AssistantUiEvent> AttachMessageIdAsync(
+    IAsyncEnumerable<AssistantUiEvent> events,
+    ITranscriptStore transcripts,
+    string prompt,
+    [EnumeratorCancellation] CancellationToken cancellationToken)
+{
+    await foreach (AssistantUiEvent uiEvent in events.WithCancellation(cancellationToken))
+    {
+        if (uiEvent.Kind != AssistantUiEventKind.Finished)
+        {
+            yield return uiEvent;
+            continue;
+        }
+
+        string persistedId = await transcripts.SaveTurnAsync(prompt, uiEvent, cancellationToken);
+        yield return uiEvent with { Metadata = new Dictionary<string, string> { ["messageId"] = persistedId } };
+    }
+}
 
 app.Run();
 
@@ -69,6 +97,7 @@ Three things to notice:
 - **`ToUiEventsAsync(cancellationToken)` is the only translation step.** The endpoint never touches `ChatProgressContent` or `UsageReportContent` directly — the mapper already turned them into flat `AssistantUiEvent` values in stream order.
 - **One `ConfigureHttpJsonOptions` call wires the whole contract.** `TypedResults.ServerSentEvents<T>` serializes each `SseItem<T>.Data` with the `JsonOptions` resolved from `HttpContext.RequestServices`; inserting `AssistantUiJsonContext.Default` at the front of the `TypeInfoResolverChain` makes it use the contract's source-generated, trim-safe metadata instead of reflection.
 - **The named SSE event (`"assistant-ui"`) lets consumers filter cheaply.** Both consumers below listen for that event name specifically, so a page that also multiplexes other SSE traffic (heartbeats, unrelated notifications) never has to inspect payloads it doesn't care about.
+- **`AttachMessageIdAsync` is the motivating case for `AssistantUiEvent.Metadata`** (since 0.8.0, [#14](https://github.com/Andes-Software-Solutions/Andes.Extensions.AI/issues/14)): this API persists each turn's answer as a transcript document (`ITranscriptStore.SaveTurnAsync(prompt, uiEvent, cancellationToken)`, an application-defined abstraction over wherever transcripts live — a database, blob storage, whatever fits) and hands the client the persisted id on the `Finished` frame by rewriting that one event with `uiEvent with { Metadata = ... }`, `AssistantUiEvent` being an immutable record. `ToUiEventsAsync` itself never sets `Metadata` — attaching it is always this kind of extra step downstream.
 
 ## B. The Blazor WebAssembly consumer
 
@@ -267,6 +296,33 @@ export function renderSnapshot(snapshot: AssistantStatusSnapshot, root: HTMLElem
     answer.textContent = snapshot.text;
     root.append(answer);
   }
+
+  // Only present once the producer's AttachMessageIdAsync (see part A) has rewritten the Finished
+  // event with Metadata -- absent on every snapshot before that, and on any run of a producer that
+  // never attaches it, since the contract itself never sets this field.
+  const messageId = snapshot.metadata?.["messageId"];
+  if (messageId) {
+    root.append(renderMessageActions(messageId));
+  }
+}
+
+function renderMessageActions(messageId: string): HTMLElement {
+  const actions = document.createElement("div");
+  actions.className = "assistant-message-actions";
+
+  const permalink = document.createElement("a");
+  permalink.className = "assistant-permalink";
+  permalink.href = `/transcripts/${encodeURIComponent(messageId)}`;
+  permalink.textContent = "Permalink";
+
+  const rate = document.createElement("button");
+  rate.type = "button";
+  rate.className = "assistant-rate";
+  rate.dataset.messageId = messageId;
+  rate.textContent = "Rate this answer";
+
+  actions.append(permalink, rate);
+  return actions;
 }
 
 function renderActivity(activity: AssistantActivity): HTMLElement {
@@ -311,6 +367,7 @@ function renderActivity(activity: AssistantActivity): HTMLElement {
 ## Notes
 
 - **Privacy invariant, unchanged.** Every field on the wire is a header-turned-name, a status, activity metadata, or a token count — never prompt content, tool arguments, or tool results. See [UI: Privacy posture](../ui.md#privacy-posture).
+- **`Metadata` is the one field this example's producer sets itself.** `AttachMessageIdAsync` in part A rewrites the `Finished` event's `Metadata`; the Blazor and TypeScript consumers both fold it in automatically (it merges before any kind-specific handling — see [UI: The reducer](../ui.md#the-reducer-assistantstatusreducer)), and part C reads it back as `snapshot.metadata?.["messageId"]`. A Blazor consumer reads the C# equivalent, `_snapshot.Metadata?["messageId"]`.
 - **The Blazor client and the TypeScript client consume literally the same bytes.** Neither is a "primary" implementation the other approximates — both read the identical `AssistantUiJsonContext`-produced JSON over the identical named SSE event, which is the entire point of shipping one contract instead of one C# shape and a hand-maintained TypeScript approximation of it.
 - **Keep the shipped `.ts` file in step with the NuGet package version it came from.** The file travels inside the package (`typescript/andes-assistant-ui.ts`) rather than as a separate npm package specifically so a frontend and a backend on different versions don't silently drift — see [UI: The TypeScript file](../ui.md#the-typescript-file).
 - **A production endpoint needs the usual hardening this example skips** — authentication on `/chat/stream`, a request size/time limit, and reconnect handling on the client (`EventSource` retries automatically with the `retry:` field; a Blazor client restarting a dropped stream needs to do so explicitly). None of that changes the contract itself.

@@ -157,4 +157,152 @@ public class AssistantStatusReducerTests
         // matching the TypeScript foldAssistantEvents counterpart exactly.
         Assert.Equal("planning the callinterpreting the result", snapshot.ReasoningText);
     }
+
+    [Fact]
+    public void Apply_MetadataOnStatusEvent_CarriesOntoSnapshot()
+    {
+        var reducer = new AssistantStatusReducer();
+
+        AssistantStatusSnapshot snapshot = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.Status,
+            Message = "Working…",
+            Metadata = new Dictionary<string, string> { ["traceId"] = "trace-1" },
+        });
+
+        Assert.Equal("Working…", snapshot.AssistantStatus);
+        Assert.NotNull(snapshot.Metadata);
+        Assert.Equal("trace-1", snapshot.Metadata!["traceId"]);
+    }
+
+    [Fact]
+    public void Apply_MetadataAcrossEvents_MergesWithLastWriteWinningPerKey()
+    {
+        var reducer = new AssistantStatusReducer();
+
+        reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.TextDelta,
+            Text = "Hello",
+            Metadata = new Dictionary<string, string> { ["traceId"] = "trace-1", ["messageId"] = "m1" },
+        });
+        AssistantStatusSnapshot snapshot = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.Finished,
+            Metadata = new Dictionary<string, string> { ["messageId"] = "m2" },
+        });
+
+        Assert.NotNull(snapshot.Metadata);
+        Assert.Equal(2, snapshot.Metadata!.Count);
+        Assert.Equal("trace-1", snapshot.Metadata["traceId"]);
+        Assert.Equal("m2", snapshot.Metadata["messageId"]);
+    }
+
+    [Fact]
+    public void Apply_NullOrEmptyMetadata_LeavesAccumulatedMetadataUnchanged()
+    {
+        var reducer = new AssistantStatusReducer();
+
+        reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.Status,
+            Message = "Working…",
+            Metadata = new Dictionary<string, string> { ["traceId"] = "trace-1" },
+        });
+        AssistantStatusSnapshot afterNull = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.TextDelta,
+            Text = "Hello",
+        });
+        AssistantStatusSnapshot afterEmpty = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.TextDelta,
+            Text = " world",
+            Metadata = new Dictionary<string, string>(),
+        });
+
+        Assert.NotNull(afterEmpty.Metadata);
+        Assert.Equal("trace-1", afterEmpty.Metadata!["traceId"]);
+        // Null and empty bags are no-ops that reuse the accumulated instance — no copy is made.
+        Assert.Same(afterNull.Metadata, afterEmpty.Metadata);
+    }
+
+    [Fact]
+    public void Apply_EmptyMetadataOnly_LeavesSnapshotMetadataNull()
+    {
+        var reducer = new AssistantStatusReducer();
+
+        AssistantStatusSnapshot snapshot = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.TextDelta,
+            Text = "Hello",
+            Metadata = new Dictionary<string, string>(),
+        });
+
+        // An empty bag must not materialize an empty dictionary — the TypeScript fold's empty
+        // guard keeps the same shape, and JSON omission (WhenWritingNull) depends on it.
+        Assert.Null(snapshot.Metadata);
+    }
+
+    [Fact]
+    public void Apply_UnknownKind_StillMergesMetadata()
+    {
+        var reducer = new AssistantStatusReducer();
+
+        AssistantStatusSnapshot snapshot = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = (AssistantUiEventKind)999,
+            Metadata = new Dictionary<string, string> { ["messageId"] = "m1" },
+        });
+
+        // Matches the TypeScript fold's default arm: an unrecognized kind changes nothing else
+        // but still contributes its application-supplied metadata.
+        Assert.NotNull(snapshot.Metadata);
+        Assert.Equal("m1", snapshot.Metadata!["messageId"]);
+        Assert.Null(snapshot.AssistantStatus);
+        Assert.Equal(ActivityState.Running, snapshot.Phase);
+        Assert.Empty(snapshot.Activities);
+        Assert.Null(snapshot.Text);
+        Assert.Null(snapshot.Usage);
+    }
+
+    [Fact]
+    public void Apply_LaterMetadataEvent_DoesNotMutateEarlierSnapshot()
+    {
+        var reducer = new AssistantStatusReducer();
+
+        AssistantStatusSnapshot first = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.Status,
+            Message = "Working…",
+            Metadata = new Dictionary<string, string> { ["messageId"] = "m1" },
+        });
+        AssistantStatusSnapshot second = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.Finished,
+            Metadata = new Dictionary<string, string> { ["messageId"] = "m2", ["conversationName"] = "Weather chat" },
+        });
+
+        // Neither the overwritten key nor the newly added one bleeds into the earlier snapshot.
+        Assert.Equal("m1", first.Metadata!["messageId"]);
+        Assert.Single(first.Metadata);
+        Assert.Equal("m2", second.Metadata!["messageId"]);
+        Assert.Equal("Weather chat", second.Metadata["conversationName"]);
+    }
+
+    [Fact]
+    public void Apply_CallerMutatedEventDictionary_SnapshotKeepsOriginalValues()
+    {
+        var reducer = new AssistantStatusReducer();
+        var eventMetadata = new Dictionary<string, string> { ["messageId"] = "m1" };
+
+        AssistantStatusSnapshot snapshot = reducer.Apply(new AssistantUiEvent
+        {
+            Kind = AssistantUiEventKind.Finished,
+            Metadata = eventMetadata,
+        });
+        eventMetadata["messageId"] = "mutated";
+
+        Assert.Equal("m1", snapshot.Metadata!["messageId"]);
+    }
 }
