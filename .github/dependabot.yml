@@ -1,7 +1,29 @@
-# Keeps the SHA-pinned actions in .github/workflows up to date via reviewable PRs.
+# Keeps the SHA-pinned actions in .github/workflows and the NuGet pins in
+# Directory.Packages.props up to date via reviewable PRs.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+
+  # NuGet pins live in Directory.Packages.props (central package management);
+  # Dependabot's NuGet updater edits the <PackageVersion> rows there.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      nuget-stable:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Majors are reviewed by hand (floor changes need a lockstep bump + release notes).
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # Capped by Microsoft.Extensions.AI.OpenAI's [2.12.0, 2.13.0) range; patches still flow.
+      - dependency-name: "OpenAI"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
