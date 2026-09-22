@@ -24,6 +24,7 @@ updates:
       # Majors are reviewed by hand (floor changes need a lockstep bump + release notes).
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      # Capped by Microsoft.Extensions.AI.OpenAI's [2.12.0, 2.13.0) range; patches still flow.
+      # Held at the OpenAI version Microsoft.Extensions.AI.OpenAI compiles against (see the comment in
+      # Directory.Packages.props); bump only alongside a Microsoft.Extensions.AI.OpenAI release. Patches still flow.
       - dependency-name: "OpenAI"
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
