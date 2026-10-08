@@ -3,18 +3,27 @@
     "allow": [],
     "additionalDirectories": []
   },
-  "model": "fable",
+  "model": "opus",
   "enableAllProjectMcpServers": true,
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "code-review@claude-plugins-official": true,
     "github@claude-plugins-official": true,
-    "playwright@claude-plugins-official": true,
-    "microsoft-docs@claude-plugins-official": true,
-    "azure@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true,
-    "sonarqube@claude-plugins-official": true
-  }
+    "andes-core@andes": true,
+    "andes-dotnet@andes": true,
+    "andes-angular@andes": true,
+    "andes-github@andes": true
+  },
+  "extraKnownMarketplaces": {
+    "andes": {
+      "source": {
+        "source": "github",
+        "repo": "Andes-Software-Solutions/awesome-claude-copilot"
+      }
+    }
+  },
+  "effortLevel": "xhigh"
 }
