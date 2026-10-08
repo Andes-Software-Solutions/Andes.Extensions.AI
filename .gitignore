@@ -488,3 +488,6 @@ appsettings.integration.json
 
 # Local demo secrets (see samples/Andes.Extensions.AI.Demo/appsettings.sample.json)
 samples/**/appsettings.json
+
+# Andes planner working plans (never committed)
+docs/plans/

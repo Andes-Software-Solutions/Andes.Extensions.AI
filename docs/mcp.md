@@ -16,7 +16,7 @@ This guide covers installation, how classification and the progress bridge work,
 dotnet add package Andes.Extensions.AI.Mcp
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.10.0) and [`ModelContextProtocol.Core`](https://www.nuget.org/packages/ModelContextProtocol.Core) (>= 2.2.0). Apps that build MCP clients or servers with the full `ModelContextProtocol` package are unaffected — the satellite only needs the Core types.
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.11.0) and [`ModelContextProtocol.Core`](https://www.nuget.org/packages/ModelContextProtocol.Core) (>= 2.2.0). Apps that build MCP clients or servers with the full `ModelContextProtocol` package are unaffected — the satellite only needs the Core types.
 
 ## Quickstart
 

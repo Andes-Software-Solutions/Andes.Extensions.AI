@@ -16,7 +16,7 @@ This guide covers installation, the two DTO layers, the mapper and reducer, the 
 dotnet add package Andes.Extensions.AI.UI
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.10.0) and `Microsoft.Extensions.AI.Abstractions` — nothing else. The package does not reference the [MCP](mcp.md) or [Agent](agents.md) satellites; it doesn't need to, because `ToolKind` (the `Unknown`/`Function`/`McpTool`/`Agent` badge every activity carries) already lives in core, shared by every satellite.
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.11.0) and `Microsoft.Extensions.AI.Abstractions` — nothing else. The package does not reference the [MCP](mcp.md) or [Agent](agents.md) satellites; it doesn't need to, because `ToolKind` (the `Unknown`/`Function`/`McpTool`/`Agent` badge every activity carries) already lives in core, shared by every satellite.
 
 ## Quickstart
 

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <!-- The OpenAI library still marks the Responses API [Experimental("OPENAI001")] in 2.13.0. -->
+    <!-- The OpenAI library still marks the Responses API [Experimental("OPENAI001")] in 2.14.0. -->
     <NoWarn>$(NoWarn);OPENAI001</NoWarn>
   </PropertyGroup>
 
