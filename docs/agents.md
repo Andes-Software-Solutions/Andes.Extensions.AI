@@ -18,7 +18,7 @@ This guide covers installation, how classification and usage capture work, the d
 dotnet add package Andes.Extensions.AI.Agent
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.10.0) and [`Microsoft.Agents.AI`](https://www.nuget.org/packages/Microsoft.Agents.AI) (>= 1.22.0, stable).
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.11.0) and [`Microsoft.Agents.AI`](https://www.nuget.org/packages/Microsoft.Agents.AI) (>= 1.24.0, stable).
 
 ## Quickstart
 
