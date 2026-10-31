@@ -49,6 +49,34 @@ public class NestedMcpScopeTests(InMemoryMcpFixture fixture) : IClassFixture<InM
     }
 
     [Fact]
+    public async Task WithTracking_ClientWithoutServerInfo_NestedScopeBypassesClassifierFallback()
+    {
+        AIFunction echo = _fixture.EchoTool.WithTracking(new ServerInfoOnlyMcpClient(null));
+        AIFunction outer = AIFunctionFactory.Create(
+            async (CancellationToken cancellationToken) =>
+            {
+                await echo.InvokeAsync(new AIFunctionArguments { ["message"] = "hi" }, cancellationToken);
+                return "done";
+            },
+            "Outer");
+        var scripted = new ScriptedChatClient(
+            ScriptedTurn.FunctionCall("call-1", "Outer"),
+            ScriptedTurn.Text("Done."));
+        IChatClient client = TestPipeline.Build(
+            scripted,
+            options => options.UseMcpToolClassification("Fallback Server", _ => "Resolved Server"));
+
+        List<ChatResponseUpdate> updates = await TestPipeline.CollectAsync(client, new ChatOptions { Tools = [outer] });
+
+        ChatProgressUpdate childInvoking = Assert.Single(
+            TestPipeline.ProgressOf(updates),
+            update => update.Kind == ChatProgressKind.ToolInvoking && update.ToolName == "echo");
+        Assert.Equal(ToolKind.McpTool, childInvoking.ToolKind);
+        Assert.Null(childInvoking.ToolSource);
+        Assert.Equal("Calling echo MCP", childInvoking.Message);
+    }
+
+    [Fact]
     public async Task WithTracking_BridgedProgressInsideNestedScope_LandsOnChildScope()
     {
         var ack = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

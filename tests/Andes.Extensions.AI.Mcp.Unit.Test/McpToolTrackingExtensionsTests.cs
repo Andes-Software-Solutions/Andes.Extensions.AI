@@ -1,6 +1,7 @@
 using Andes.Extensions.AI.Mcp.Unit.Test.Infrastructure;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 
 namespace Andes.Extensions.AI.Mcp.Unit.Test;
 
@@ -54,6 +55,65 @@ public class McpToolTrackingExtensionsTests(InMemoryMcpFixture fixture) : IClass
         Assert.Equal(ToolKind.McpTool, descriptor.Kind);
         Assert.Equal(InMemoryMcpFixture.ServerName, descriptor.Source);
         Assert.Equal("echo", descriptor.Name);
+    }
+
+    [Fact]
+    public void WithTracking_ClientWithoutServerInfo_FallsBackToDefaultServerName()
+    {
+        ToolTrackingOptions options = new ToolTrackingOptions().UseMcpToolClassification("Fallback Server");
+        AIFunction wrapped = _fixture.EchoTool.WithTracking(new ServerInfoOnlyMcpClient(null));
+
+        ToolDescriptor descriptor = options.ToolClassifier!(wrapped);
+
+        Assert.Equal(ToolKind.McpTool, descriptor.Kind);
+        Assert.Equal("Fallback Server", descriptor.Source);
+    }
+
+    [Fact]
+    public void WithTracking_ClientWithoutServerInfo_ResolverPreferredOverDefault()
+    {
+        ToolTrackingOptions options = new ToolTrackingOptions()
+            .UseMcpToolClassification(serverNameResolver: _ => "Resolved Server");
+        AIFunction wrapped = _fixture.EchoTool.WithTracking(new ServerInfoOnlyMcpClient(null));
+
+        ToolDescriptor descriptor = options.ToolClassifier!(wrapped);
+
+        Assert.Equal("Resolved Server", descriptor.Source);
+    }
+
+    [Fact]
+    public void WithTracking_ClientWithEmptyServerName_FallsBackToDefaultServerName()
+    {
+        ToolTrackingOptions options = new ToolTrackingOptions().UseMcpToolClassification("Fallback Server");
+        var client = new ServerInfoOnlyMcpClient(new Implementation { Name = "", Version = "1.0.0" });
+        AIFunction wrapped = _fixture.EchoTool.WithTracking(client);
+
+        ToolDescriptor descriptor = options.ToolClassifier!(wrapped);
+
+        Assert.Equal("Fallback Server", descriptor.Source);
+    }
+
+    [Fact]
+    public void WithTracking_ClientWithServerTitle_TitlePreferredOverName()
+    {
+        ToolTrackingOptions options = new ToolTrackingOptions().UseMcpToolClassification();
+        var client = new ServerInfoOnlyMcpClient(new Implementation { Name = "name", Title = "Title", Version = "1.0.0" });
+        AIFunction wrapped = _fixture.EchoTool.WithTracking(client);
+
+        ToolDescriptor descriptor = options.ToolClassifier!(wrapped);
+
+        Assert.Equal("Title", descriptor.Source);
+    }
+
+    [Fact]
+    public void WithTracking_EnumerableWithClientWithoutServerInfo_FallsBackToDefaultServerName()
+    {
+        ToolTrackingOptions options = new ToolTrackingOptions().UseMcpToolClassification("Fallback Server");
+
+        IList<AITool> wrapped = _fixture.Tools.WithTracking(new ServerInfoOnlyMcpClient(null));
+
+        Assert.Equal(_fixture.Tools.Count, wrapped.Count);
+        Assert.All(wrapped, tool => Assert.Equal("Fallback Server", options.ToolClassifier!(tool).Source));
     }
 
     [Fact]

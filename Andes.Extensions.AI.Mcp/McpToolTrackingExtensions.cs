@@ -28,6 +28,12 @@ public static class McpToolTrackingExtensions
     /// Wraps an MCP tool for tracking, taking the server display name from the client's
     /// <see cref="McpClient.ServerInfo"/>.
     /// </summary>
+    /// <remarks>
+    /// When the server reports no identity, the wrapper carries no server name and
+    /// <see cref="ToolTrackingOptionsMcpExtensions.UseMcpToolClassification"/> falls back to its
+    /// resolver and default server name. An invocation nested inside another tool or an agent
+    /// bypasses that classifier, so it shows the tool name and reports no source instead.
+    /// </remarks>
     /// <param name="tool">The MCP tool to wrap.</param>
     /// <param name="client">The client connected to the server that exposes the tool.</param>
     /// <param name="enableProgress">
@@ -43,7 +49,7 @@ public static class McpToolTrackingExtensions
         ArgumentNullException.ThrowIfNull(tool);
         ArgumentNullException.ThrowIfNull(client);
 
-        return tool.WithTracking(GetServerDisplayName(client), enableProgress);
+        return new McpTrackingAIFunction(tool, GetServerDisplayName(client), enableProgress);
     }
 
     /// <summary>
@@ -72,6 +78,12 @@ public static class McpToolTrackingExtensions
     /// Wraps a set of MCP tools for tracking, taking the server display name from the client's
     /// <see cref="McpClient.ServerInfo"/>, ready to assign to <see cref="ChatOptions.Tools"/>.
     /// </summary>
+    /// <remarks>
+    /// When the server reports no identity, the wrappers carry no server name and
+    /// <see cref="ToolTrackingOptionsMcpExtensions.UseMcpToolClassification"/> falls back to its
+    /// resolver and default server name. An invocation nested inside another tool or an agent
+    /// bypasses that classifier, so it shows the tool name and reports no source instead.
+    /// </remarks>
     /// <param name="tools">The MCP tools to wrap, typically from <c>ListToolsAsync</c>.</param>
     /// <param name="client">The client connected to the server that exposes the tools.</param>
     /// <param name="enableProgress">
@@ -95,19 +107,21 @@ public static class McpToolTrackingExtensions
         ArgumentNullException.ThrowIfNull(tools);
         ArgumentNullException.ThrowIfNull(client);
 
-        string serverName = GetServerDisplayName(client);
         var wrapped = new List<AITool>();
         foreach (McpClientTool tool in tools)
         {
-            wrapped.Add(tool.WithTracking(serverName, enableProgress));
+            wrapped.Add(tool.WithTracking(client, enableProgress));
         }
 
         return wrapped;
     }
 
-    private static string GetServerDisplayName(McpClient client)
+    private static string? GetServerDisplayName(McpClient client)
     {
-        string? title = client.ServerInfo.Title;
-        return string.IsNullOrEmpty(title) ? client.ServerInfo.Name : title;
+        // ServerInfo is null when a server on the 2026-07-28 protocol omits its optional identity.
+        // Returning null instead of a placeholder keeps the classifier's resolver and default in play.
+        string? title = client.ServerInfo?.Title;
+        string? name = string.IsNullOrEmpty(title) ? client.ServerInfo?.Name : title;
+        return string.IsNullOrEmpty(name) ? null : name;
     }
 }

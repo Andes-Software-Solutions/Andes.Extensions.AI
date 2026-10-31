@@ -20,15 +20,16 @@ namespace Andes.Extensions.AI;
 /// middleware wrapped this function itself, the owner check makes the call a no-op.
 /// </para>
 /// </remarks>
-internal sealed class McpTrackingAIFunction(McpClientTool tool, string serverName, bool enableProgress) : DelegatingAIFunction(tool)
+internal sealed class McpTrackingAIFunction(McpClientTool tool, string? serverName, bool enableProgress) : DelegatingAIFunction(tool)
 {
     private readonly McpClientTool _tool = tool;
 
 
     /// <summary>
-    /// Gets the server display name shown in progress headers ("Calling {ServerName} MCP").
+    /// Gets the server display name shown in progress headers ("Calling {ServerName} MCP"), or
+    /// <see langword="null"/> when the server reported no identity.
     /// </summary>
-    public string ServerName { get; } = serverName;
+    public string? ServerName { get; } = serverName;
 
     /// <summary>
     /// Gets a value indicating whether MCP progress notifications are bridged into chat progress updates.
@@ -64,8 +65,9 @@ internal sealed class McpTrackingAIFunction(McpClientTool tool, string serverNam
 
     private ToolDescriptor CreateDescriptor()
     {
-        // Mirrors UseMcpToolClassification's descriptor; a nested scope cannot consult the
-        // tracker's ToolClassifier, so the constructed server name is used directly.
+        // Mirrors UseMcpToolClassification's descriptor, except that a nested scope cannot consult
+        // the tracker's ToolClassifier: the constructed server name is used directly, so without
+        // one the resolver and default are out of reach and the header falls back to the tool name.
         return new ToolDescriptor
         {
             Name = Name,

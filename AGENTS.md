@@ -106,7 +106,7 @@ Integration tests run for real only when `tests\Andes.Extensions.AI.Integration.
 - Observer callbacks are isolated so a faulty `IChatProgressObserver` cannot corrupt the response stream — the one documented case where an exception is caught and not rethrown.
 - Public API changes require XML docs (missing docs fail the build) and a matching update under `docs\`.
 - Packaging metadata lives in each package's csproj; `dotnet pack -c Release` must produce the nupkg + snupkg with the README embedded (root README for core, each satellite's own `README.md` for the satellites).
-- The four packages version in **lockstep** (all `0.12.0` today); each satellite's `ProjectReference` to core becomes a `>= {version}` NuGet dependency automatically.
+- The four packages version in **lockstep** (all `0.13.0` today); each satellite's `ProjectReference` to core becomes a `>= {version}` NuGet dependency automatically.
 - **Release notes**: every version bump (package csprojs or a new release tag) needs `releases/v{version}.md`, authored by `andes-se-technical-writer`, documenting what was added, changed, and fixed relative to the previous release. Every claim must trace to git history or current sources — never invent dates or features.
 - Integration tests authenticate with an API key from the gitignored `appsettings.integration.json` by explicit choice, not `DefaultAzureCredential`.
 - Microsoft.Extensions.AI and Agent Framework APIs move quickly: check `microsoft-learn`, and the dotnet/extensions sources through `context7`, before relying on memory.
