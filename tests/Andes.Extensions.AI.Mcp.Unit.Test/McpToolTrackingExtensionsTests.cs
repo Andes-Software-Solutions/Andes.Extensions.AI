@@ -39,7 +39,7 @@ public class McpToolTrackingExtensionsTests(InMemoryMcpFixture fixture) : IClass
     {
         AIFunction wrapped = _fixture.EchoTool.WithTracking(_fixture.Client);
 
-        object? result = await wrapped.InvokeAsync(new AIFunctionArguments { ["message"] = "hello" });
+        object? result = await wrapped.InvokeAsync(new AIFunctionArguments { ["message"] = "hello" }, TestContext.Current.CancellationToken);
 
         Assert.Contains("Echo: hello", result?.ToString());
     }

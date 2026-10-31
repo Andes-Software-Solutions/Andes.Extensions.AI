@@ -26,8 +26,8 @@ public class LiveNestedActivityTests
 
         AssistantStatusSnapshot? last = null;
         await foreach (AssistantStatusSnapshot snapshot in client
-            .GetStreamingResponseAsync("prompt", new ChatOptions { Tools = [tool] })
-            .ToStatusSnapshotsAsync())
+            .GetStreamingResponseAsync("prompt", new ChatOptions { Tools = [tool] }, TestContext.Current.CancellationToken)
+            .ToStatusSnapshotsAsync(TestContext.Current.CancellationToken))
         {
             last = snapshot;
         }
@@ -95,8 +95,8 @@ public class LiveNestedActivityTests
 
         AssistantStatusSnapshot? last = null;
         await foreach (AssistantStatusSnapshot snapshot in client
-            .GetStreamingResponseAsync("prompt", new ChatOptions { Tools = [tool] })
-            .ToStatusSnapshotsAsync())
+            .GetStreamingResponseAsync("prompt", new ChatOptions { Tools = [tool] }, TestContext.Current.CancellationToken)
+            .ToStatusSnapshotsAsync(TestContext.Current.CancellationToken))
         {
             last = snapshot;
         }

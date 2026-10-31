@@ -54,7 +54,7 @@ public class StripProgressContentTests
     {
         var scripted = new ScriptedChatClient(ScriptedTurn.Text("Hello!"));
         IChatClient client = TestPipeline.Build(scripted);
-        ChatResponse response = await client.GetResponseAsync("prompt");
+        ChatResponse response = await client.GetResponseAsync("prompt", cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(response.AdditionalProperties!.ContainsKey(ToolTrackingChatClient.UsageReportPropertyName));
 
         response.StripProgressContent();

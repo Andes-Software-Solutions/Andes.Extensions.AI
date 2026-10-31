@@ -201,7 +201,7 @@ public class ReasoningDetectionTests
         });
         IChatClient client = TestPipeline.Build(scripted, options => options.Observers.Add(observer));
 
-        ChatResponse response = await client.GetResponseAsync("prompt");
+        ChatResponse response = await client.GetResponseAsync("prompt", cancellationToken: TestContext.Current.CancellationToken);
 
         ChatProgressUpdate reasoning = Assert.Single(observer.Updates, update => update.Kind == ChatProgressKind.Reasoning);
         Assert.Equal("Reasoning...", reasoning.Message);
@@ -223,7 +223,7 @@ public class ReasoningDetectionTests
         });
         IChatClient client = TestPipeline.Build(scripted, options => options.Observers.Add(observer));
 
-        await client.GetResponseAsync("prompt");
+        await client.GetResponseAsync("prompt", cancellationToken: TestContext.Current.CancellationToken);
 
         List<ChatProgressUpdate> notified = [.. observer.Updates];
         ChatProgressUpdate reasoning = Assert.Single(notified, update => update.Kind == ChatProgressKind.Reasoning);

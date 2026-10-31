@@ -31,7 +31,7 @@ public sealed class InMemoryMcpFixture : IAsyncLifetime
     /// </summary>
     public TaskCompletionSource? ProgressAck { get; set; }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         Pipe clientToServer = new();
         Pipe serverToClient = new();
@@ -97,11 +97,11 @@ public sealed class InMemoryMcpFixture : IAsyncLifetime
         var clientTransport = new StreamClientTransport(
             serverInput: clientToServer.Writer.AsStream(),
             serverOutput: serverToClient.Reader.AsStream());
-        Client = await McpClient.CreateAsync(clientTransport);
-        Tools = await Client.ListToolsAsync();
+        Client = await McpClient.CreateAsync(clientTransport, cancellationToken: TestContext.Current.CancellationToken);
+        Tools = await Client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (Client is not null)
         {

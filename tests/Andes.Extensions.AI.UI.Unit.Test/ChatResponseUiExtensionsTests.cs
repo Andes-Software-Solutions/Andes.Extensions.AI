@@ -124,8 +124,8 @@ public class ChatResponseUiExtensionsTests
 
         AssistantStatusSnapshot? last = null;
         await foreach (AssistantStatusSnapshot snapshot in client
-            .GetStreamingResponseAsync("prompt", new ChatOptions { Tools = [tool] })
-            .ToStatusSnapshotsAsync())
+            .GetStreamingResponseAsync("prompt", new ChatOptions { Tools = [tool] }, TestContext.Current.CancellationToken)
+            .ToStatusSnapshotsAsync(TestContext.Current.CancellationToken))
         {
             last = snapshot;
         }
@@ -149,7 +149,7 @@ public class ChatResponseUiExtensionsTests
         {
             yield return ChatProgressUpdate.CreateCustom("Starting request").ToResponseUpdate();
 
-            await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync("prompt"))
+            await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync("prompt", cancellationToken: TestContext.Current.CancellationToken))
             {
                 yield return update;
             }
@@ -157,7 +157,7 @@ public class ChatResponseUiExtensionsTests
 
         AssistantStatusSnapshot? first = null;
         AssistantStatusSnapshot? last = null;
-        await foreach (AssistantStatusSnapshot snapshot in StreamWithPrependedStatus().ToStatusSnapshotsAsync())
+        await foreach (AssistantStatusSnapshot snapshot in StreamWithPrependedStatus().ToStatusSnapshotsAsync(TestContext.Current.CancellationToken))
         {
             first ??= snapshot;
             last = snapshot;
@@ -246,8 +246,8 @@ public class ChatResponseUiExtensionsTests
 
         AssistantStatusSnapshot? last = null;
         await foreach (AssistantStatusSnapshot snapshot in client
-            .GetStreamingResponseAsync("prompt", new ChatOptions { Tools = [tool] })
-            .ToStatusSnapshotsAsync())
+            .GetStreamingResponseAsync("prompt", new ChatOptions { Tools = [tool] }, TestContext.Current.CancellationToken)
+            .ToStatusSnapshotsAsync(TestContext.Current.CancellationToken))
         {
             last = snapshot;
         }
@@ -287,8 +287,8 @@ public class ChatResponseUiExtensionsTests
     {
         var events = new List<AssistantUiEvent>();
         await foreach (AssistantUiEvent uiEvent in client
-            .GetStreamingResponseAsync("prompt", options)
-            .ToUiEventsAsync())
+            .GetStreamingResponseAsync("prompt", options, TestContext.Current.CancellationToken)
+            .ToUiEventsAsync(TestContext.Current.CancellationToken))
         {
             events.Add(uiEvent);
         }

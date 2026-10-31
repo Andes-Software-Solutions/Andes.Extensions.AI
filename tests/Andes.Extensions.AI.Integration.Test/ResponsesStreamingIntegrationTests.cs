@@ -13,10 +13,10 @@ public class ResponsesStreamingIntegrationTests(AzureOpenAIFixture fixture) : IC
 {
     private readonly AzureOpenAIFixture _fixture = fixture;
 
-    [SkippableFact]
+    [Fact]
     public async Task GetStreamingResponseAsync_ResponsesApi_DetectsReasoningAndTracksUsage()
     {
-        Skip.IfNot(_fixture.IsResponsesConfigured, AzureOpenAIFixture.ResponsesSkipReason);
+        Assert.SkipUnless(_fixture.IsResponsesConfigured, AzureOpenAIFixture.ResponsesSkipReason);
 
         IChatClient client = CreateResponsesPipeline();
         // Full output maps to Responses summary verbosity "detailed". Not Summary: M.E.AI maps it
@@ -31,7 +31,8 @@ public class ResponsesStreamingIntegrationTests(AzureOpenAIFixture fixture) : IC
         var updates = new List<ChatResponseUpdate>();
         await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
             "What is the sum of the first ten prime numbers? Reason it out, then answer.",
-            options))
+            options,
+            TestContext.Current.CancellationToken))
         {
             updates.Add(update);
         }
@@ -55,7 +56,7 @@ public class ResponsesStreamingIntegrationTests(AzureOpenAIFixture fixture) : IC
         // verification); when they do, the middleware must announce Reasoning exactly once
         // for this single-turn request, ahead of the first reasoning content.
         int reasoningContentIndex = IndexOfContent<TextReasoningContent>(updates);
-        Skip.If(reasoningContentIndex < 0,
+        Assert.SkipWhen(reasoningContentIndex < 0,
             "The deployment streamed no reasoning summaries; enable summaries on a reasoning-capable deployment to exercise detection.");
 
         ChatProgressUpdate reasoning = Assert.Single(progress, update => update.Kind == ChatProgressKind.Reasoning);
