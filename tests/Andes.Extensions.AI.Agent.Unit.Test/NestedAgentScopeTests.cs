@@ -184,7 +184,7 @@ public class NestedAgentScopeTests
     {
         AIFunction packing = CreatePackingAgent(ScriptedTurn.Text("packed")).WithTracking();
 
-        object? result = await packing.InvokeAsync(new AIFunctionArguments { ["query"] = "pack?" });
+        object? result = await packing.InvokeAsync(new AIFunctionArguments { ["query"] = "pack?" }, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
     }

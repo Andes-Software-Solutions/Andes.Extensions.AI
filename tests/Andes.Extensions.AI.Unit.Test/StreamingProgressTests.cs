@@ -129,9 +129,9 @@ public class StreamingProgressTests
         IChatClient client = TestPipeline.Build(scripted);
 
         Task<OperationCanceledException> collecting = Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => TestPipeline.CollectAsync(client, cancellationToken: cancellation.Token));
+            () => TestPipeline.CollectWithTokenAsync(client, null, cancellation.Token));
 
-        await collecting.WaitAsync(TimeSpan.FromSeconds(30));
+        await collecting.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public class StreamingProgressTests
         var scripted = new ScriptedChatClient(ScriptedTurn.Text("a long answer", new UsageDetails { TotalTokenCount = 9 }));
         IChatClient client = TestPipeline.Build(scripted, options => options.Observers.Add(observer));
 
-        await foreach (ChatResponseUpdate _ in client.GetStreamingResponseAsync("prompt"))
+        await foreach (ChatResponseUpdate _ in client.GetStreamingResponseAsync("prompt", cancellationToken: TestContext.Current.CancellationToken))
         {
             break;
         }

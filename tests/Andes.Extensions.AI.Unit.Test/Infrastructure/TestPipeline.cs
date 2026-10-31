@@ -21,10 +21,16 @@ internal static class TestPipeline
             .Build(services);
     }
 
-    public static async Task<List<ChatResponseUpdate>> CollectAsync(
+    public static Task<List<ChatResponseUpdate>> CollectAsync(IChatClient client, ChatOptions? options = null)
+    {
+        return CollectWithTokenAsync(client, options, TestContext.Current.CancellationToken);
+    }
+
+    // Not a CollectAsync overload: xUnit1051 would then flag every token-less CollectAsync call.
+    public static async Task<List<ChatResponseUpdate>> CollectWithTokenAsync(
         IChatClient client,
-        ChatOptions? options = null,
-        CancellationToken cancellationToken = default)
+        ChatOptions? options,
+        CancellationToken cancellationToken)
     {
         var updates = new List<ChatResponseUpdate>();
         await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync("prompt", options, cancellationToken))

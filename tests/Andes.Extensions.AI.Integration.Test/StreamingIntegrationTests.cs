@@ -6,10 +6,10 @@ public class StreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFixtu
 {
     private readonly AzureOpenAIFixture _fixture = fixture;
 
-    [SkippableFact]
+    [Fact]
     public async Task GetStreamingResponseAsync_WithTool_TracksUsageAndProgress()
     {
-        Skip.IfNot(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
+        Assert.SkipUnless(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
 
         AIFunction tool = AIFunctionFactory.Create(
             () =>
@@ -24,7 +24,8 @@ public class StreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFixtu
         var updates = new List<ChatResponseUpdate>();
         await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
             "Call the GetCurrentTime tool, then tell me what time it returned.",
-            new ChatOptions { Tools = [tool] }))
+            new ChatOptions { Tools = [tool] },
+            TestContext.Current.CancellationToken))
         {
             updates.Add(update);
         }
@@ -52,15 +53,15 @@ public class StreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFixtu
         Assert.NotEmpty(string.Concat(updates.Select(update => update.Text)));
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task GetStreamingResponseAsync_WithoutTools_ProducesUsageOnlyReport()
     {
-        Skip.IfNot(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
+        Assert.SkipUnless(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
 
         IChatClient client = _fixture.CreatePipeline();
 
         var updates = new List<ChatResponseUpdate>();
-        await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync("Reply with the single word: pong"))
+        await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync("Reply with the single word: pong", cancellationToken: TestContext.Current.CancellationToken))
         {
             updates.Add(update);
         }
@@ -76,15 +77,15 @@ public class StreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFixtu
         Assert.NotNull(report.ModelId);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task GetStreamingResponseAsync_StrippedResponse_KeepsRealTextOnly()
     {
-        Skip.IfNot(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
+        Assert.SkipUnless(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
 
         IChatClient client = _fixture.CreatePipeline();
 
         var updates = new List<ChatResponseUpdate>();
-        await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync("Reply with the single word: pong"))
+        await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync("Reply with the single word: pong", cancellationToken: TestContext.Current.CancellationToken))
         {
             updates.Add(update);
         }

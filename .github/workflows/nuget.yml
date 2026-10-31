@@ -50,7 +50,7 @@ jobs:
         run: dotnet build Andes.Extensions.slnx --configuration Release
 
       - name: Test
-        run: dotnet test Andes.Extensions.slnx --configuration Release --no-build
+        run: dotnet test --solution Andes.Extensions.slnx --configuration Release --no-build
 
       # Pack ONLY the four shipping projects into a dedicated output directory.
       # (Test projects are packable too, so never pack the solution or glob bin/.)

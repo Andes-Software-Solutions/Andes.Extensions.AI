@@ -54,10 +54,10 @@ public sealed class AgentToolTrackingIntegrationTests(AzureOpenAIFixture fixture
             .AsIChatClient();
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task GetStreamingResponseAsync_AgentAsTool_EmitsAgentHeaderAndClassification()
     {
-        Skip.IfNot(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
+        Assert.SkipUnless(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
 
         var observer = new RecordingObserver();
         IChatClient client = _fixture.CreatePipeline(options =>
@@ -68,7 +68,8 @@ public sealed class AgentToolTrackingIntegrationTests(AzureOpenAIFixture fixture
 
         await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
             [new ChatMessage(ChatRole.User, "Use the Weather Agent tool to get the weather in Quito, then confirm.")],
-            new ChatOptions { Tools = [CreateWeatherAgent().WithTracking()] }))
+            new ChatOptions { Tools = [CreateWeatherAgent().WithTracking()] },
+            TestContext.Current.CancellationToken))
         {
         }
 
@@ -85,10 +86,10 @@ public sealed class AgentToolTrackingIntegrationTests(AzureOpenAIFixture fixture
             call => call.Kind == ToolKind.Agent && call.ToolName == "Weather_Agent");
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task GetStreamingResponseAsync_AgentAsTool_AttributesAgentUsageToToolScope()
     {
-        Skip.IfNot(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
+        Assert.SkipUnless(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
 
         var observer = new RecordingObserver();
         IChatClient client = _fixture.CreatePipeline(options =>
@@ -99,7 +100,8 @@ public sealed class AgentToolTrackingIntegrationTests(AzureOpenAIFixture fixture
 
         await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
             [new ChatMessage(ChatRole.User, "Use the Weather Agent tool to get the weather in Quito, then confirm.")],
-            new ChatOptions { Tools = [CreateWeatherAgent().WithTracking()] }))
+            new ChatOptions { Tools = [CreateWeatherAgent().WithTracking()] },
+            TestContext.Current.CancellationToken))
         {
         }
 
@@ -118,10 +120,10 @@ public sealed class AgentToolTrackingIntegrationTests(AzureOpenAIFixture fixture
             "The report total should exceed the assistant-only usage because the agent's usage is included.");
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task GetStreamingResponseAsync_AgentToolInsideAgent_EmitsChildScopeWithUsage()
     {
-        Skip.IfNot(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
+        Assert.SkipUnless(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
 
         var observer = new RecordingObserver();
         IChatClient client = _fixture.CreatePipeline(options =>
@@ -132,7 +134,8 @@ public sealed class AgentToolTrackingIntegrationTests(AzureOpenAIFixture fixture
 
         await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
             [new ChatMessage(ChatRole.User, "Use the Research Agent tool to find out what to pack for Quito, then confirm.")],
-            new ChatOptions { Tools = [CreateResearchAgent().WithTracking()] }))
+            new ChatOptions { Tools = [CreateResearchAgent().WithTracking()] },
+            TestContext.Current.CancellationToken))
         {
         }
 

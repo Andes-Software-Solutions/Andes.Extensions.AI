@@ -16,7 +16,7 @@ This guide covers installation, how classification and the progress bridge work,
 dotnet add package Andes.Extensions.AI.Mcp
 ```
 
-Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.12.0) and [`ModelContextProtocol.Core`](https://www.nuget.org/packages/ModelContextProtocol.Core) (>= 2.2.0). Apps that build MCP clients or servers with the full `ModelContextProtocol` package are unaffected — the satellite only needs the Core types.
+Installing the package brings in the core `Andes.Extensions.AI` package (>= 0.13.0) and [`ModelContextProtocol.Core`](https://www.nuget.org/packages/ModelContextProtocol.Core) (>= 2.3.0). Apps that build MCP clients or servers with the full `ModelContextProtocol` package are unaffected — the satellite only needs the Core types.
 
 ## Quickstart
 
@@ -61,7 +61,7 @@ A typical rendering while a progress-reporting MCP tool runs:
 [RequestCompleted] Request completed
 ```
 
-`WithTracking` has three overloads: per tool taking the `McpClient` (server name from `ServerInfo.Title ?? ServerInfo.Name`), per tool taking an explicit `serverName` string, and over an `IEnumerable<McpClientTool>` (the shape `ListToolsAsync()` returns), which produces an `IList<AITool>` ready to assign to `ChatOptions.Tools`.
+`WithTracking` has three overloads: per tool taking the `McpClient` (server name from `ServerInfo.Title ?? ServerInfo.Name`; a server that reports no identity, or an empty name, leaves the wrapper without a server name), per tool taking an explicit `serverName` string, and over an `IEnumerable<McpClientTool>` (the shape `ListToolsAsync()` returns), which produces an `IList<AITool>` ready to assign to `ChatOptions.Tools`.
 
 ## How classification works
 
@@ -71,9 +71,13 @@ The server name (`Source`) is resolved in precedence order:
 
 | Precedence | Server name comes from | Applies when |
 | --- | --- | --- |
-| 1 | The `WithTracking` wrapper — `ServerInfo.Title ?? ServerInfo.Name` from the client, or the explicit `serverName` string | The tool was wrapped with `WithTracking` |
-| 2 | The `serverNameResolver` callback, when it returns non-`null` | The tool was not wrapped |
+| 1 | The `WithTracking` wrapper — `ServerInfo.Title ?? ServerInfo.Name` from the client, or the explicit `serverName` string | The wrapper actually carries a name |
+| 2 | The `serverNameResolver` callback, when it returns non-`null` | The tool was not wrapped, or was wrapped with a client whose server reported no identity |
 | 3 | `defaultServerName` (`"MCP"` unless overridden) | Everything else |
+
+Since the MCP C# SDK 2.3.0, `McpClient.ServerInfo` is nullable: it is `null` on `2026-07-28` connections when the server omits its optional identity. `WithTracking(tool, client)` tolerates that without hard-coding a placeholder, so your resolver or default still applies. The explicit `WithTracking(tool, serverName)` overload still rejects `null` and empty strings.
+
+One limit applies to nested calls (an MCP tool running inside another tool or an agent, which open a child scope through `ChatProgress.BeginToolScope`). That path bypasses the classifier, so the resolver and default do not apply there. A wrapper without a server name shows `Calling {tool} MCP` and reports a `null` `Source` on `ChatProgressUpdate.ToolSource` and `ToolCallUsage.Source`. Wrap with an explicit `serverName` when you need a name in nested scopes.
 
 Non-MCP tools are delegated to whatever classifier was configured **before** `UseMcpToolClassification` was called, or to `ToolDescriptor.CreateDefault` (new public API in core v0.2: the built-in classification — `AIFunction` becomes `ToolKind.Function`, everything else `ToolKind.Unknown` — exposed for custom classifiers to fall back on) when there is none. To compose, assign your own classifier first, then call `UseMcpToolClassification`:
 
@@ -163,7 +167,7 @@ Three test projects exercise the package against real MCP plumbing — the proto
 
 - `tests\Andes.Extensions.AI.Mcp.Unit.Test` — no network or child processes: the `Infrastructure\InMemoryMcpFixture` hosts a genuine MCP client/server pair over in-process pipe streams, so tests classify and invoke real `McpClientTool` instances and observe real bridged notifications (including the synthesized-message fallback, the completion race, and — `NestedMcpScopeTests` — child scopes with the bridge bound to them).
 - `tests\Andes.Extensions.AI.TestMcpServer` — a runnable stdio MCP server ("Andes Test MCP") with three deterministic tools: `echo`, `add`, and `count_down`, which reports one progress notification per step. Useful for manual experiments as well as the integration tests.
-- `tests\Andes.Extensions.AI.Mcp.Integration.Test` — drives a real Azure OpenAI deployment against the stdio test server, end to end through the tracked pipeline. Tests are `[SkippableFact]` and skip cleanly when configuration is missing. The project **links the same gitignored `appsettings.integration.json`** as `tests\Andes.Extensions.AI.Integration.Test` — configure it once (copy the `.sample` file, fill in the `AzureOpenAI` section) and both integration projects pick it up. Never environment variables.
+- `tests\Andes.Extensions.AI.Mcp.Integration.Test` — drives a real Azure OpenAI deployment against the stdio test server, end to end through the tracked pipeline. Tests skip cleanly (`Assert.SkipUnless` on the fixture's `IsConfigured`) when configuration is missing. The project **links the same gitignored `appsettings.integration.json`** as `tests\Andes.Extensions.AI.Integration.Test` — configure it once (copy the `.sample` file, fill in the `AzureOpenAI` section) and both integration projects pick it up. Never environment variables.
 
 ```shell
 dotnet test

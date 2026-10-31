@@ -6,6 +6,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: friday
 
   # NuGet pins live in Directory.Packages.props (central package management);
   # Dependabot's NuGet updater edits the <PackageVersion> rows there.
@@ -13,6 +14,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: friday
     groups:
       nuget-stable:
         patterns:

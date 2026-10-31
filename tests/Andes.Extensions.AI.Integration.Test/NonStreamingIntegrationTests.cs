@@ -6,10 +6,10 @@ public class NonStreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFi
 {
     private readonly AzureOpenAIFixture _fixture = fixture;
 
-    [SkippableFact]
+    [Fact]
     public async Task GetResponseAsync_WithTool_AttachesReportAndNotifiesObservers()
     {
-        Skip.IfNot(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
+        Assert.SkipUnless(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
 
         var observer = new RecordingObserver();
         AIFunction tool = AIFunctionFactory.Create(
@@ -20,7 +20,8 @@ public class NonStreamingIntegrationTests(AzureOpenAIFixture fixture) : IClassFi
 
         ChatResponse response = await client.GetResponseAsync(
             "Call the GetCurrentTime tool, then tell me what time it returned.",
-            new ChatOptions { Tools = [tool] });
+            new ChatOptions { Tools = [tool] },
+            TestContext.Current.CancellationToken);
 
         Assert.NotNull(response.AdditionalProperties);
         var report = Assert.IsType<ChatUsageReport>(

@@ -21,7 +21,7 @@ public class NonStreamingTests
             "GetWeather");
         IChatClient client = TestPipeline.Build(scripted, options => options.Observers.Add(observer));
 
-        ChatResponse response = await client.GetResponseAsync("prompt", new ChatOptions { Tools = [tool] });
+        ChatResponse response = await client.GetResponseAsync("prompt", new ChatOptions { Tools = [tool] }, TestContext.Current.CancellationToken);
 
         List<ChatProgressKind> kinds = observer.Updates.Select(update => update.Kind).ToList();
         Assert.Equal(ChatProgressKind.ToolInvoking, kinds[0]);
@@ -41,7 +41,7 @@ public class NonStreamingTests
             ScriptedTurn.Text("Hello!", new UsageDetails { InputTokenCount = 8, OutputTokenCount = 4, TotalTokenCount = 12 }));
         IChatClient client = TestPipeline.Build(scripted);
 
-        ChatResponse response = await client.GetResponseAsync("prompt");
+        ChatResponse response = await client.GetResponseAsync("prompt", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(response.AdditionalProperties);
         var report = Assert.IsType<ChatUsageReport>(response.AdditionalProperties[ToolTrackingChatClient.UsageReportPropertyName]);
@@ -59,7 +59,7 @@ public class NonStreamingTests
         AIFunction tool = AIFunctionFactory.Create(() => "sunny", "GetWeather");
         IChatClient client = TestPipeline.Build(scripted);
 
-        ChatResponse response = await client.GetResponseAsync("prompt", new ChatOptions { Tools = [tool] });
+        ChatResponse response = await client.GetResponseAsync("prompt", new ChatOptions { Tools = [tool] }, TestContext.Current.CancellationToken);
 
         var report = Assert.IsType<ChatUsageReport>(response.AdditionalProperties?[ToolTrackingChatClient.UsageReportPropertyName]);
         ToolCallUsage call = Assert.Single(report.ToolCalls);
@@ -72,7 +72,7 @@ public class NonStreamingTests
         var scripted = new ScriptedChatClient(ScriptedTurn.Text("Hello!"));
         IChatClient client = TestPipeline.Build(scripted, options => options.AttachReportToResponse = false);
 
-        ChatResponse response = await client.GetResponseAsync("prompt");
+        ChatResponse response = await client.GetResponseAsync("prompt", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(response.AdditionalProperties is null
             || !response.AdditionalProperties.ContainsKey(ToolTrackingChatClient.UsageReportPropertyName));
@@ -85,7 +85,7 @@ public class NonStreamingTests
         var scripted = new ScriptedChatClient();
         IChatClient client = TestPipeline.Build(scripted, options => options.Observers.Add(observer));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => client.GetResponseAsync("prompt"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.GetResponseAsync("prompt", cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains(observer.Updates, update => update.Kind == ChatProgressKind.RequestFailed);
         Assert.DoesNotContain(observer.Updates, update => update.Kind == ChatProgressKind.RequestCompleted);
@@ -101,7 +101,7 @@ public class NonStreamingTests
         AIFunction tool = AIFunctionFactory.Create(() => "sunny", "GetWeather");
         IChatClient client = TestPipeline.Build(scripted);
 
-        ChatResponse response = await client.GetResponseAsync("prompt", new ChatOptions { Tools = [tool] });
+        ChatResponse response = await client.GetResponseAsync("prompt", new ChatOptions { Tools = [tool] }, TestContext.Current.CancellationToken);
 
         Assert.Empty(response.Messages.SelectMany(message => message.Contents).OfType<ChatProgressContent>());
         Assert.Empty(response.Messages.SelectMany(message => message.Contents).OfType<UsageReportContent>());

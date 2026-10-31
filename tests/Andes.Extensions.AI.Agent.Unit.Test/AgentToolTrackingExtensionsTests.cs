@@ -30,7 +30,7 @@ public class AgentToolTrackingExtensionsTests
         AIAgent agent = CreateWeatherAgent(ScriptedTurn.Text("Sunny"));
         AIFunction wrapped = agent.WithTracking();
 
-        object? result = await wrapped.InvokeAsync(new AIFunctionArguments { ["query"] = "weather?" });
+        object? result = await wrapped.InvokeAsync(new AIFunctionArguments { ["query"] = "weather?" }, TestContext.Current.CancellationToken);
 
         Assert.Contains("Sunny", result?.ToString());
     }
@@ -55,7 +55,7 @@ public class AgentToolTrackingExtensionsTests
             new UsageDetails { InputTokenCount = 60, OutputTokenCount = 40, TotalTokenCount = 100 }));
         AIFunction wrapped = agent.WithTracking();
 
-        object? result = await wrapped.InvokeAsync(new AIFunctionArguments { ["query"] = "weather?" });
+        object? result = await wrapped.InvokeAsync(new AIFunctionArguments { ["query"] = "weather?" }, TestContext.Current.CancellationToken);
 
         Assert.Contains("Sunny", result?.ToString());
     }

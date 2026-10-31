@@ -252,7 +252,7 @@ public class ChatProgressToolScopeTests
             ScriptedTurn.Text("Done."));
         IChatClient client = TestPipeline.Build(scripted);
 
-        ChatResponse response = await client.GetResponseAsync("prompt", new ChatOptions { Tools = [tool] });
+        ChatResponse response = await client.GetResponseAsync("prompt", new ChatOptions { Tools = [tool] }, TestContext.Current.CancellationToken);
 
         ChatUsageReport report = Assert.IsType<ChatUsageReport>(
             response.AdditionalProperties?[ToolTrackingChatClient.UsageReportPropertyName]);

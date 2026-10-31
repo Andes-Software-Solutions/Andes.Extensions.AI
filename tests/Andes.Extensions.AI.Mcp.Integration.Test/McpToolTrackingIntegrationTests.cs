@@ -21,13 +21,13 @@ public sealed class McpToolTrackingIntegrationTests(AzureOpenAIFixture fixture) 
         });
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task GetStreamingResponseAsync_McpToolViaStdioTestServer_EmitsMcpHeaderWithServerName()
     {
-        Skip.IfNot(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
+        Assert.SkipUnless(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
 
-        await using McpClient mcpClient = await McpClient.CreateAsync(CreateTestServerTransport());
-        IList<McpClientTool> mcpTools = await mcpClient.ListToolsAsync();
+        await using McpClient mcpClient = await McpClient.CreateAsync(CreateTestServerTransport(), cancellationToken: TestContext.Current.CancellationToken);
+        IList<McpClientTool> mcpTools = await mcpClient.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
         IList<AITool> trackedTools = mcpTools.WithTracking(mcpClient);
 
         var observer = new RecordingObserver();
@@ -39,7 +39,8 @@ public sealed class McpToolTrackingIntegrationTests(AzureOpenAIFixture fixture) 
 
         await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
             [new ChatMessage(ChatRole.User, "Use the echo tool to echo the text 'integration test'.")],
-            new ChatOptions { Tools = trackedTools }))
+            new ChatOptions { Tools = trackedTools },
+            TestContext.Current.CancellationToken))
         {
         }
 
@@ -56,13 +57,13 @@ public sealed class McpToolTrackingIntegrationTests(AzureOpenAIFixture fixture) 
             call => call.Kind == ToolKind.McpTool && call.ToolName == "echo");
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task GetStreamingResponseAsync_McpToolReportsProgress_EmitsToolProgressWithNumericValues()
     {
-        Skip.IfNot(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
+        Assert.SkipUnless(_fixture.IsConfigured, AzureOpenAIFixture.SkipReason);
 
-        await using McpClient mcpClient = await McpClient.CreateAsync(CreateTestServerTransport());
-        IList<McpClientTool> mcpTools = await mcpClient.ListToolsAsync();
+        await using McpClient mcpClient = await McpClient.CreateAsync(CreateTestServerTransport(), cancellationToken: TestContext.Current.CancellationToken);
+        IList<McpClientTool> mcpTools = await mcpClient.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
         IList<AITool> trackedTools = mcpTools.WithTracking(mcpClient);
 
         var observer = new RecordingObserver();
@@ -74,7 +75,8 @@ public sealed class McpToolTrackingIntegrationTests(AzureOpenAIFixture fixture) 
 
         await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
             [new ChatMessage(ChatRole.User, "Use the count_down tool with steps set to 3, then confirm.")],
-            new ChatOptions { Tools = trackedTools }))
+            new ChatOptions { Tools = trackedTools },
+            TestContext.Current.CancellationToken))
         {
         }
 
