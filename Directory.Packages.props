@@ -16,7 +16,7 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="ModelContextProtocol" Version="2.3.0" />
-    <PackageVersion Include="ModelContextProtocol.Core" Version="2.3.0" />
+    <PackageVersion Include="ModelContextProtocol.Core" Version="2.3.1" />
     <!-- OpenAI is held at the version Microsoft.Extensions.AI.OpenAI 10.11.0 compiles against (its nuspec floor, 2.14.0).
          The Responses surface is [Experimental("OPENAI001")] and OpenAI minors rename experimental types that
          Microsoft.Extensions.AI.OpenAI references by name (2.14.0 renamed GlobalMcpToolCallApprovalPolicy to
